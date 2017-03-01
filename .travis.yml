@@ -18,7 +18,6 @@ before_script:
 
 install:
     - pip install .
-    - pip install -r requirements_dev.txt
 
     - pip install coveralls
     - pip install codeclimate-test-reporter
