@@ -1,0 +1,33 @@
+# Config file for automatic testing at travis-ci.org
+# This file will be regenerated if you run travis_pypi_setup.py
+
+language: python
+python: 3.6
+
+before_script:
+    # INSTALL GHDL
+
+    - sudo sh scripts/install_ghdl.sh
+    - export PATH=$PATH:$PWD/ghdl/bin/
+
+    # INSTALL COCOTB
+    - sudo apt-get install git make gcc g++ swig
+    - sh scripts/install_cocotb.sh #cant sudo this, files will lock, later
+    - export COCOTB=$PWD/cocotb
+    - export PYHA_SKIP_QUARTUS_SIMS=1
+
+install:
+    - pip install .
+    - pip install -r requirements_dev.txt
+
+    - pip install coveralls
+    - pip install codeclimate-test-reporter
+
+
+
+script:
+    - coverage run --source pyhacores -m pytest
+
+after_success:
+    - coveralls
+    - codeclimate-test-reporter
