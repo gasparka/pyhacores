@@ -25,7 +25,7 @@ install:
 
 
 script:
-    - coverage run --source pyhacores -m pytest
+    - coverage run --source pyhacores -m pytest pyhacores/
 
 after_success:
     - coveralls
