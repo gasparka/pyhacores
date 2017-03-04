@@ -1,10 +1,10 @@
 import numpy as np
-from pyha.simulation.simulation_interface import assert_sim_match
 
 from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix
-from pyha.components.cordic import NCO
+
+from pyhacores.cordic.model import NCO
 
 
 class FSKModulator(HW):
