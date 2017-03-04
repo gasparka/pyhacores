@@ -28,7 +28,7 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.0',
 
-    description='A sample Python project',
+    description='Cores written in Pyha',
     long_description=long_description,
 
     # The project's main homepage.

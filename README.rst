@@ -28,5 +28,8 @@ pyhacores
    :target: https://codeclimate.com/github/petspats/pyhacores
    :alt: Code Climate
 
+
+Cores written with `Pyha<https://github.com/petspats/pyha/>`__
+
 * Free software: Apache Software License 2.0
 * Documentation: https://pyhacores.readthedocs.io.
