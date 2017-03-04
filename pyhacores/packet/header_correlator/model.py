@@ -3,13 +3,13 @@ from pyha.common.hwsim import HW
 from pyha.common.util import hex_to_bool_list
 
 
+# todo: remove hardcoded 16 bit limit
 class HeaderCorrelator(HW):
-    """ Correlate againtst 16 bit header
+    """ Correlate against 16 bit header
     Once header is found, 'packet_len' bits are skipped before next header can be correlated!
     """
     def __init__(self, header, packet_len):
         """
-
         :param header: 16 bit header
         :param packet_len: this is used as a cooldown, to not discover packets inside packets
         """
@@ -24,7 +24,6 @@ class HeaderCorrelator(HW):
 
     def main(self, din):
         """
-
         :param din: bit in
         :return: True if 100% correlation
         """
