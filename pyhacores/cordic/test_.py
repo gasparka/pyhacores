@@ -151,7 +151,7 @@ class TestToPolar:
 
     def test_angle_phantom_cmultconj(self):
         # phantom 2 -> demod = c[1:] * np.conjugate(c[:-1])
-        path = Path(__file__).parent / 'phantom_cmult_conjugate.npy'
+        path = Path(__file__).parent / 'data/phantom_cmult_conjugate.npy'
         sig = np.load(str(path))
 
         inputs = sig
@@ -164,7 +164,6 @@ class TestToPolar:
                          expect, inputs,
                          rtol=1e-4,
                          atol=1e-4,  # zeroes make trouble
-                         simulations=[SIM_MODEL, SIM_HW_MODEL]
                          )
         np.testing.assert_allclose(out[0][200:], out[1][200:], 1e-3, 1e-4)
         np.testing.assert_allclose(out[0][200:], out[1][200:], 1e-3, 1e-4)
