@@ -1,5 +1,4 @@
 import numpy as np
-
 from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix

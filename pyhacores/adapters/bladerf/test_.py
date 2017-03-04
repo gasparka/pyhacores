@@ -5,7 +5,7 @@ import numpy as np
 from pyha.common.sfix import Sfix
 from pyha.simulation.simulation_interface import assert_sim_match
 
-from pyhacores.adapters.bladerf.model import Sink, ComplexSource
+from pyhacores.adapters.bladerf.model import ComplexSource, Sink
 
 
 def _load_file(file_name):

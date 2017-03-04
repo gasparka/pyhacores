@@ -1,11 +1,7 @@
 import numpy as np
-
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix, ComplexSfix
 from pyha.components.quadrature_demodulator import QuadratureDemodulator
-
-
-# TODO: this is work in progress
 from pyhacores.moving_average.model import MovingAverage
 
 

@@ -1,7 +1,7 @@
+import numpy as np
 from pyha.common.sfix import ComplexSfix
 from pyha.simulation.simulation_interface import assert_sim_match
 from pyhacores.fsk_demodulator.model import FSKDemodulator
-import numpy as np
 
 
 def test_basic():
