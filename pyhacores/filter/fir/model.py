@@ -7,6 +7,9 @@ import numpy as np
 
 
 def normalize_taps(taps):
+    """
+    Rescale taps in that way that their abs sum equals 1, this assures no overflows in filter cores
+    """
     taps = np.array(taps)
     cs = sum(abs(taps))
     for (i, x) in enumerate(taps):
@@ -57,7 +60,6 @@ def test_symmetric():
 
     assert_sim_match(dut, [Sfix(left=0, right=-17)], None, inp,
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
-                     dir_path='/home/gaspar/git/pyhacores/conversion',
                      rtol=1e-4, atol=1e-4)
 
 
@@ -68,6 +70,5 @@ def test_non_symmetric():
 
     assert_sim_match(dut, [Sfix(left=0, right=-17)], None, inp,
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
-                     dir_path='/home/gaspar/git/pyhacores/conversion',
-                     rtol=1e-5,
-                     atol=1e-5)
+                     rtol=1e-4,
+                     atol=1e-4)
