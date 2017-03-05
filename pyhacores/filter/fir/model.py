@@ -6,33 +6,42 @@ from scipy import signal
 import numpy as np
 
 
+def normalize_taps(taps):
+    taps = np.array(taps)
+    cs = sum(abs(taps))
+    for (i, x) in enumerate(taps):
+        taps[i] = x / cs
+
+    return taps.tolist()
+
+
 class FIR(HW):
+    """ FIR filter, taps will be normalized to sum 1 """
     def __init__(self, taps):
-        self.taps = taps
-        if isinstance(self.taps, np.ndarray):
-            self.taps = self.taps.tolist()
+        self.taps = normalize_taps(taps)
 
         # registers
-        acc_bits = 28
-        add_growth = int(np.log2(len(taps)))
-        self.acc = [Sfix(0.0, add_growth, -(acc_bits-add_growth-1))] * len(self.taps)
-        assert len(self.acc[0]) == acc_bits
-        assert self.acc[0].right <= -17
-
+        self.acc = [Sfix()] * len(self.taps)
         self.mul = [Sfix()] * len(self.taps)
         self.out = Sfix()
 
         # constants
+        self.add_growth = Const(int(np.log2(len(taps))))
         self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
         self._delay = 3
 
     def main(self, x):
+        """
+        Transposed form FIR implementation, uses full precision
+        """
         for i in range(len(self.taps_fix_reversed)):
             self.next.mul[i] = x * self.taps_fix_reversed[i]
             if i == 0:
-                self.next.acc[0] = resize(self.mul[i], size_res=self.next.acc[0], round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[0] = resize(self.mul[i], 1, right_index(self.mul[i]), round_style=fixed_truncate,
+                                          overflow_style=fixed_wrap)
             else:
-                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], size_res=self.next.acc[0], round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], 1, right_index(self.mul[i]),
+                                          round_style=fixed_truncate, overflow_style=fixed_wrap)
 
         self.next.out = resize(self.acc[-1], size_res=x, round_style=fixed_truncate)
         return self.out
