@@ -13,26 +13,29 @@ class FIR(HW):
             self.taps = self.taps.tolist()
 
         # registers
-        self.acc = [Sfix()] * len(self.taps)
+        acc_bits = 28
+        add_growth = int(np.log2(len(taps)))
+        self.acc = [Sfix(0.0, add_growth, -(acc_bits-add_growth-1))] * len(self.taps)
+        assert len(self.acc[0]) == acc_bits
+        assert self.acc[0].right <= -17
+
         self.mul = [Sfix()] * len(self.taps)
+        self.out = Sfix()
 
         # constants
         self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
-        self.add_growth = Const(int(np.log2(len(taps))))
-        self._delay = 2
+        self._delay = 3
 
     def main(self, x):
-        left = left_index(x) + self.add_growth
         for i in range(len(self.taps_fix_reversed)):
             self.next.mul[i] = x * self.taps_fix_reversed[i]
             if i == 0:
-                self.next.acc[0] = resize(self.mul[i], left, right_index(self.mul[i]), round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[0] = resize(self.mul[i], size_res=self.next.acc[0], round_style=fixed_truncate, overflow_style=fixed_wrap)
             else:
-                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], left, right_index(self.mul[i]), round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], size_res=self.next.acc[0], round_style=fixed_truncate, overflow_style=fixed_wrap)
 
-        out = resize(self.acc[-1], size_res=x)
-        # out = self.acc[-1]
-        return out
+        self.next.out = resize(self.acc[-1], size_res=x, round_style=fixed_truncate)
+        return self.out
 
     def model_main(self, x):
         return signal.lfilter(self.taps, [1.0], x)
