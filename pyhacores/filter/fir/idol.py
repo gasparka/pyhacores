@@ -1,3 +1,5 @@
+from pyha.common.hwsim import HW
+from pyha.common.sfix import Sfix
 from scipy import signal
 
 from pyhacores.filter.fir.model import normalize_taps
@@ -9,9 +11,9 @@ class FIR(HW):
         self.taps = normalize_taps(taps)
 
         # registers
-        self.mul = [Sfix()] * len(self.taps)
-        self.acc = [Sfix()] * len(self.taps)
-        self.out = Sfix()
+        self.mul = [Sfix(0.0, size_res=type.mult)] * len(self.taps)
+        self.acc = [Sfix(0.0, left=1, right=self.mul[0].right)] * len(self.taps)
+        self.out = type
 
         # constants
         self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
