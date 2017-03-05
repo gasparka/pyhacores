@@ -3,8 +3,9 @@ import numpy as np
 from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.sfix import ComplexSfix, resize, Sfix, fixed_truncate
-from pyha.components.cordic import Angle
-from pyha.components.util_complex import Conjugate, ComplexMultiply
+
+from pyhacores.cordic.model import Angle
+from pyhacores.util_complex.model import Conjugate, ComplexMultiply
 
 
 class QuadratureDemodulator(HW):

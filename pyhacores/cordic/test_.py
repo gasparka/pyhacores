@@ -5,9 +5,11 @@ import pytest
 from scipy.signal import chirp, hilbert
 
 from pyha.common.sfix import ComplexSfix, Sfix
-from pyha.components.cordic import ToPolar, Cordic, NCO, CordicMode, Angle, Abs
 from pyha.simulation.simulation_interface import assert_sim_match, SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE, \
     assert_hwmodel_rtl_match, assert_model_hwmodel_match, debug_assert_sim_match
+
+from pyhacores.cordic.model import Cordic, ToPolar, Angle, Abs, NCO
+from pyhacores.cordic.model import CordicMode
 
 
 def test_cordic_vectoring_model_hw_match():

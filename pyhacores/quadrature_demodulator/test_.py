@@ -5,10 +5,11 @@ import pytest
 
 from pyha.common.sfix import ComplexSfix
 from pyha.common.util import load_gnuradio_file
-from pyha.components.quadrature_demodulator import QuadratureDemodulator, QuadratureDemodulatorPartial0, \
-    QuadratureDemodulatorPartial1
 from pyha.simulation.simulation_interface import assert_sim_match, SIM_MODEL, SIM_HW_MODEL, \
     SIM_RTL, plot_assert_sim_match
+
+from pyhacores.quadrature_demodulator.model import QuadratureDemodulatorPartial0, QuadratureDemodulatorPartial1, \
+    QuadratureDemodulator
 
 
 class TestFm:

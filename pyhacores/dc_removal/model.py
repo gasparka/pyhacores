@@ -1,7 +1,6 @@
 from pyha.common.hwsim import HW
-# from pyha.common.sfix import resize
 from pyha.common.sfix import resize, Sfix
-from pyha.components.moving_average import MovingAverage
+from pyhacores.moving_average.model import MovingAverage
 
 
 class DCRemoval(HW):

@@ -1,6 +1,7 @@
 from pyha.common.sfix import Sfix
-from pyha.components.dc_removal import DCRemoval
 from pyha.simulation.simulation_interface import assert_sim_match
+
+from pyhacores.dc_removal.model import DCRemoval
 
 
 def test_basic():

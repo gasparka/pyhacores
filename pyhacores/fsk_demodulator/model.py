@@ -1,8 +1,8 @@
 import numpy as np
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix, ComplexSfix
-from pyha.components.quadrature_demodulator import QuadratureDemodulator
 from pyhacores.moving_average.model import MovingAverage
+from pyhacores.quadrature_demodulator.model import QuadratureDemodulator
 
 
 class FSKDemodulator(HW):

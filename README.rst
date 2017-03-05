@@ -29,7 +29,7 @@ pyhacores
    :alt: Code Climate
 
 
-Cores written with `Pyha<https://github.com/petspats/pyha/>`__
+Cores written with `Pyha <https://github.com/petspats/pyha/>`_
 
 * Free software: Apache Software License 2.0
 * Documentation: https://pyhacores.readthedocs.io.

@@ -2,11 +2,11 @@ import numpy as np
 from pyha.common.sfix import ComplexSfix
 from pyha.simulation.simulation_interface import assert_sim_match
 from pyhacores.fsk_demodulator.model import FSKDemodulator
+from pyhacores.fsk_modulator.model import FSKModulator
 
 
 def test_basic():
     # test signal
-    from pyha.components.fsk_modulator import FSKModulator
     samples_per_symbol = 4
     symbols = [1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0]
 

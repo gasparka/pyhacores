@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from pyha.common.sfix import Sfix
-from pyha.components.moving_average import MovingAverage
 from pyha.simulation.simulation_interface import assert_sim_match, plot_assert_sim_match
+from pyhacores.moving_average.model import MovingAverage
 
 
 def test_window1():
