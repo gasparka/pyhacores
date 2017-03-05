@@ -24,20 +24,22 @@ class FIR(HW):
     def main(self, x):
         left = left_index(x) + self.add_growth
         for i in range(len(self.taps_fix_reversed)):
-            self.next.mul[i] = resize(x * self.taps_fix_reversed[i], size_res=x, round_style=fixed_truncate, overflow_style=fixed_wrap)
+            self.next.mul[i] = x * self.taps_fix_reversed[i]
             if i == 0:
-                self.next.acc[0] = resize(self.mul[i], left, right_index(x), round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[0] = resize(self.mul[i], left, right_index(self.mul[i]), round_style=fixed_truncate, overflow_style=fixed_wrap)
             else:
-                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], left, right_index(x), round_style=fixed_truncate, overflow_style=fixed_wrap)
+                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], left, right_index(self.mul[i]), round_style=fixed_truncate, overflow_style=fixed_wrap)
 
-        return self.acc[-1]
+        out = resize(self.acc[-1], size_res=x)
+        # out = self.acc[-1]
+        return out
 
     def model_main(self, x):
         return signal.lfilter(self.taps, [1.0], x)
 
 
-def test():
-    taps = signal.remez(8, [0, 0.1, 0.2, 0.5], [1, 0])
+def test_symmetric():
+    taps = signal.remez(128, [0, 0.1, 0.2, 0.5], [1, 0])
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 128)
 
@@ -48,11 +50,12 @@ def test():
 
 
 def test_non_symmetric():
-    taps = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    taps = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07]
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 128)
 
     assert_sim_match(dut, [Sfix(left=0, right=-17)], None, inp,
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
                      dir_path='/home/gaspar/git/pyhacores/conversion',
-                     rtol=1e-4, atol=1e-4)
+                     rtol=1e-5,
+                     atol=1e-5)
