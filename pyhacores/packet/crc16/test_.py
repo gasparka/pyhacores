@@ -13,7 +13,7 @@ class TestCRC16:
         reload = [False] * len(data)
         model = self.dut.model_main(data, reload)
         assert model[-1] == 0
-        assert_sim_match(self.dut, [bool, bool], None, data, reload)
+        assert_sim_match(self.dut, None, data, reload)
 
     def test_reset(self):
         data = hex_to_bool_list('A8dfc4ff97dffdb11ff438aee2524391039a4908970b91cdb')
@@ -22,7 +22,7 @@ class TestCRC16:
         model = self.dut.model_main(data, reload)
         assert model[-1] == 0
 
-        assert_sim_match(self.dut, [bool, bool], None, data, reload)
+        assert_sim_match(self.dut, None, data, reload)
 
     def test_reset_two(self):
         data = hex_to_bool_list('8dfc4ff97dffdb11ff438aee2524391039a4908970b91cdb'
@@ -33,4 +33,4 @@ class TestCRC16:
         assert model[191] == 0
         assert model[-1] == 0
 
-        assert_sim_match(self.dut, [bool, bool], None, data, reload)
+        assert_sim_match(self.dut, None, data, reload)

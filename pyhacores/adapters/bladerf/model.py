@@ -7,31 +7,28 @@ class ComplexSource(HW):
     (4 downto -11) -> (0 downto -17)"""
 
     def __init__(self):
-        self.out = ComplexSfix()
+        self.out = ComplexSfix(0, 0, -17)
 
         self._delay = 1
 
     def main(self, i, q):
-        outi = resize(scalb(i, 4), 0, -17)
-        outq = resize(scalb(q, 4), 0, -17)
-
-        # make complex
-        self.next.out = ComplexSfix(outi, outq)
+        self.next.out.real = scalb(i, 4)
+        self.next.out.imag = scalb(q, 4)
         return self.out
 
     def model_main(self, i, q):
         return i * (2 ** 4) + q * (2 ** 4) * 1j
 
 
-class Sink(HW):
+class FloatSink(HW):
     """ Pyha 18 bit signal to BladeRF style """
     def __init__(self):
-        self.out = Sfix()
+        self.out = Sfix(0, 0, -15)
 
         self._delay = 1
 
     def main(self, x):
-        self.next.out = resize(scalb(x, -4), 0, -15)
+        self.next.out = scalb(x, -4)
         return self.out
 
     def model_main(self, x):

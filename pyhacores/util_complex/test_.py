@@ -12,7 +12,7 @@ def test_conjugate():
 
     dut = Conjugate()
 
-    assert_sim_match(dut, [ComplexSfix(left=0, right=-17)], expect, inputs)
+    assert_sim_match(dut, expect, inputs)
 
 
 def test_multiply_consept():
@@ -38,7 +38,7 @@ def test_multiply():
          0.111281 - 0.212802j]
 
     dut = ComplexMultiply()
-    assert_sim_match(dut, [ComplexSfix(left=0, right=-17)] * 2, y, a, b, rtol=1e-4)
+    assert_sim_match(dut, y, a, b, rtol=1e-4)
 
 
 def test_multiply_harmonic():
@@ -49,5 +49,6 @@ def test_multiply_harmonic():
     # 4hz signal
     b = np.exp(1j * 2 * np.pi * 4 * t)
 
+    expect = a * b
     dut = ComplexMultiply()
-    assert_sim_match(dut, [ComplexSfix(left=0, right=-17)] * 2, a * b, a, b, rtol=1e-4, )
+    assert_sim_match(dut, expect, a, b, rtol=1e-4)
