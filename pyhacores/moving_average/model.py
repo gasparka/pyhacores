@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyha.common.const import Const
-from pyha.common.hwsim import HW
+from pyha.common.hwsim import HW, default_sfix
 from pyha.common.sfix import Sfix, left_index, right_index, fixed_wrap
 from pyha.common.sfix import resize
 from pyha.common.util import is_power2
@@ -14,7 +14,7 @@ class MovingAverage(HW):
     :param window_len: Size of the moving average window, must be power of 2
     """
 
-    def __init__(self, window_len, in_t=Sfix(0, 0, -17)):
+    def __init__(self, window_len, in_t=default_sfix):
         if window_len < 2:
             raise AttributeError('Window length must be >= 2')
 

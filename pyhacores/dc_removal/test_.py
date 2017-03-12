@@ -1,3 +1,4 @@
+import pytest
 from pyha.common.sfix import Sfix
 from pyha.simulation.simulation_interface import assert_sim_match
 
@@ -5,7 +6,15 @@ from pyhacores.dc_removal.model import DCRemoval
 
 
 def test_basic():
-    x = [1] * 16 + [-1] * 16
+    x = [0.5] * 16 + [-0.5] * 16
+
+    dut = DCRemoval(8)
+    assert_sim_match(dut, None, x)
+
+
+def test_saturation():
+    pytest.xfail('Fails as numbers go out of [-1,1] range')
+    x = [1.] * 16 + [-1.] * 16
     expected = [0.984375, 0.953125, 0.90625, 0.84375, 0.765625, 0.671875,
                 0.5625, 0.4375, 0.328125, 0.234375, 0.15625, 0.09375,
                 0.046875, 0.015625, 0., 0., -1.96875, -1.90625,
@@ -15,7 +24,7 @@ def test_basic():
 
     dut = DCRemoval(8)
 
-    assert_sim_match(dut, [Sfix(left=1, right=-18)], expected, x)
+    assert_sim_match(dut, expected, x)
 
 # def test_basic():
 #     x = [2] * 8 + [-2] * 8

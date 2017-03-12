@@ -59,7 +59,7 @@ class Cordic(HW):
 
     def initial_step(self, phase, x, y):
         """
-        CORDIC works in only 1 quadrant, this performs hacks to make it usable on other qudrants as well.
+        CORDIC works in only 1 quadrant, this performs steps to make it usable on other qudrants as well.
         """
         self.next.x[0] = x
         self.next.y[0] = y
@@ -252,5 +252,4 @@ class Abs(HW):
         return abs
 
     def model_main(self, cin):
-        # note that angle in -1..1 range
         return [np.abs(x) for x in cin]
