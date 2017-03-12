@@ -14,7 +14,7 @@ class MovingAverage(HW):
     :param window_len: Size of the moving average window, must be power of 2
     """
 
-    def __init__(self, window_len):
+    def __init__(self, window_len, in_t=Sfix(0, 0, -17)):
         if window_len < 2:
             raise AttributeError('Window length must be >= 2')
 
@@ -22,14 +22,11 @@ class MovingAverage(HW):
             raise AttributeError('Window length must be power of 2')
 
         self.window_len = window_len
+        self.window_pow = int(np.log2(window_len))
 
         # registers
-        # Sfix() -> bounds will be derived from simulation
-        self.shift_register = [Sfix()] * self.window_len
-        self.sum = Sfix()
-
-        # constants
-        self.window_pow = Const(int(np.log2(window_len)))
+        self.shift_register = [in_t] * self.window_len
+        self.sum = Sfix(0, self.window_pow + in_t.left, in_t.right, overflow_style=fixed_wrap)
 
         # module delay
         self._delay = 1
@@ -50,15 +47,9 @@ class MovingAverage(HW):
         self.next.shift_register = [x] + self.shift_register[:-1]
 
         # calculate new sum
-        nsum = self.sum + x - self.shift_register[-1]
+        self.next.sum = self.sum + x - self.shift_register[-1]
 
-        # resize sum, overflow is impossible
-        self.next.sum = resize(nsum,
-                               left_index=self.window_pow + left_index(x),
-                               right_index=right_index(x),
-                               overflow_style=fixed_wrap)
-
-        # divide sum by amout of window_len, and resize to same format as input 'x'
+        # divide sum by amount of window_len, and resize to same format as input 'x'
         ret = resize(self.sum >> self.window_pow, size_res=x)
         return ret
 
