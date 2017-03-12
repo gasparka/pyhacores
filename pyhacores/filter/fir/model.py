@@ -1,7 +1,8 @@
 from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix, resize, left_index, right_index, fixed_truncate, fixed_wrap
-from pyha.simulation.simulation_interface import assert_sim_match, SIM_HW_MODEL, SIM_MODEL, SIM_RTL, SIM_GATE
+from pyha.simulation.simulation_interface import assert_sim_match, SIM_HW_MODEL, SIM_MODEL, SIM_RTL, SIM_GATE, \
+    plot_assert_sim_match
 from scipy import signal
 import numpy as np
 
@@ -24,9 +25,9 @@ class FIR(HW):
         self.taps = normalize_taps(taps)
 
         # registers
-        self.acc = [Sfix()] * len(self.taps)
+        self.acc = [Sfix(left=1)] * len(self.taps)
         self.mul = [Sfix()] * len(self.taps)
-        self.out = Sfix()
+        self.out = Sfix(0, 0, -17)
 
         # constants
         self.add_growth = Const(int(np.log2(len(taps))))
@@ -40,13 +41,14 @@ class FIR(HW):
         for i in range(len(self.taps_fix_reversed)):
             self.next.mul[i] = x * self.taps_fix_reversed[i]
             if i == 0:
-                self.next.acc[0] = resize(self.mul[i], 1, right_index(self.mul[i]), round_style=fixed_truncate,
-                                          overflow_style=fixed_wrap)
+                self.next.acc[0] = self.mul[i]
             else:
-                self.next.acc[i] = resize(self.acc[i - 1] + self.mul[i], 1, right_index(self.mul[i]),
-                                          round_style=fixed_truncate, overflow_style=fixed_wrap)
 
-        self.next.out = resize(self.acc[-1], size_res=x, round_style=fixed_truncate)
+                self.next.acc[i] = self.acc[i - 1] + self.mul[i]
+                if self.next.acc[i].val != (self.acc[i - 1] + self.mul[i]).val:
+                    print(self.next.acc[i], self.acc[i - 1] + self.mul[i])
+
+        self.next.out = self.acc[-1]
         return self.out
 
     def model_main(self, x):
@@ -54,13 +56,23 @@ class FIR(HW):
 
 
 def test_symmetric():
-    taps = signal.remez(128, [0, 0.1, 0.2, 0.5], [1, 0])
+    np.random.seed(4)
+    taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
     dut = FIR(taps)
-    inp = np.random.uniform(-1, 1, 128)
+    inp = np.random.uniform(-1, 1, 64)
 
-    assert_sim_match(dut, [Sfix(left=0, right=-17)], None, inp,
-                     simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
-                     rtol=1e-4, atol=1e-4)
+    plot_assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL])
+
+
+def test_bug():
+    np.random.seed(4)
+    taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
+    dut = FIR(taps)
+    inp = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+
+    plot_assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL])
 
 
 def test_non_symmetric():
@@ -72,3 +84,12 @@ def test_non_symmetric():
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
                      rtol=1e-4,
                      atol=1e-4)
+
+
+def test_remez():
+    taps = signal.remez(128, [0, 0.1, 0.2, 0.5], [1, 0])
+    dut = FIR(taps)
+    inp = np.random.uniform(-1, 1, 128)
+
+    assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE])
