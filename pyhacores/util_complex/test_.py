@@ -12,7 +12,7 @@ def test_conjugate():
 
     dut = Conjugate()
 
-    assert_sim_match(dut, [ComplexSfix(left=0, right=-18)], expect, inputs)
+    assert_sim_match(dut, [ComplexSfix(left=0, right=-17)], expect, inputs)
 
 
 def test_multiply_consept():
