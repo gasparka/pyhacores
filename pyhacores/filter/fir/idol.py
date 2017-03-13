@@ -2,13 +2,13 @@ from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix
 from scipy import signal
 
-from pyhacores.filter.fir.model import normalize_taps
+from pyhacores.filter.fir.model import rescale_taps
 
 
 class FIR(HW):
     """ FIR filter, taps will be normalized to sum 1 """
     def __init__(self, taps, type):
-        self.taps = normalize_taps(taps)
+        self.taps = rescale_taps(taps)
 
         # registers
         self.mul = [Sfix(0.0, size_res=type.mult)] * len(self.taps)
