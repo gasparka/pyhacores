@@ -7,9 +7,9 @@ from scipy import signal
 import numpy as np
 
 
-def normalize_taps(taps):
+def rescale_taps(taps):
     """
-    Rescale taps in that way that their abs sum equals 1, this assures no overflows in filter cores
+    Rescale taps in that way that their abs sum equals 1, this assures no overflows in filter core
     """
     taps = np.array(taps)
     cs = sum(abs(taps))
@@ -22,15 +22,14 @@ def normalize_taps(taps):
 class FIR(HW):
     """ FIR filter, taps will be normalized to sum 1 """
     def __init__(self, taps):
-        self.taps = normalize_taps(taps)
+        self.taps = rescale_taps(taps)
 
         # registers
-        self.acc = [Sfix(left=1)] * len(self.taps)
-        self.mul = [Sfix()] * len(self.taps)
-        self.out = Sfix(0, 0, -17)
+        self.acc = [Sfix(left=1, round_style=fixed_truncate, overflow_style=fixed_wrap)] * len(self.taps)
+        self.mul = [Sfix(round_style=fixed_truncate, overflow_style=fixed_wrap)] * len(self.taps)
+        self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         # constants
-        self.add_growth = Const(int(np.log2(len(taps))))
         self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
         self._delay = 3
 
@@ -43,10 +42,7 @@ class FIR(HW):
             if i == 0:
                 self.next.acc[0] = self.mul[i]
             else:
-
                 self.next.acc[i] = self.acc[i - 1] + self.mul[i]
-                if self.next.acc[i].val != (self.acc[i - 1] + self.mul[i]).val:
-                    print(self.next.acc[i], self.acc[i - 1] + self.mul[i])
 
         self.next.out = self.acc[-1]
         return self.out
@@ -56,22 +52,23 @@ class FIR(HW):
 
 
 def test_symmetric():
-    np.random.seed(4)
     taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 64)
 
-    plot_assert_sim_match(dut, None, inp,
-                     simulations=[SIM_MODEL, SIM_HW_MODEL])
+    assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
+                     dir_path='/home/gaspar/git/pyhacores/playground')
 
 
-def test_bug():
+def test_sfix_bug():
+    """ There was Sfix None bound based bug that made only 5. output different """
     np.random.seed(4)
     taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
     dut = FIR(taps)
     inp = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-    plot_assert_sim_match(dut, None, inp,
+    assert_sim_match(dut, None, inp,
                      simulations=[SIM_MODEL, SIM_HW_MODEL])
 
 
@@ -80,13 +77,24 @@ def test_non_symmetric():
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 128)
 
-    assert_sim_match(dut, [Sfix(left=0, right=-17)], None, inp,
+    assert_sim_match(dut, None, inp,
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
                      rtol=1e-4,
                      atol=1e-4)
 
 
-def test_remez():
+def test_remez32():
+    np.random.seed(12345)
+    taps = signal.remez(32, [0, 0.1, 0.2, 0.5], [1, 0])
+    dut = FIR(taps)
+    inp = np.random.uniform(-1, 1, 512) * 0.9
+
+    assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
+                     dir_path='/home/gaspar/git/pyhacores/playground')
+
+
+def test_remez128():
     taps = signal.remez(128, [0, 0.1, 0.2, 0.5], [1, 0])
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 128)
