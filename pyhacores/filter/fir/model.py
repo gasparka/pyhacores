@@ -30,7 +30,8 @@ class FIR(HW):
         self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         # constants
-        self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
+        # self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
+        self.taps_fix_reversed = [Sfix(x, 0, -17) for x in reversed(self.taps)]
         self._delay = 3
 
     def main(self, x):
@@ -81,6 +82,17 @@ def test_non_symmetric():
                      simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
                      rtol=1e-4,
                      atol=1e-4)
+
+
+def test_remez16():
+    np.random.seed(12345)
+    taps = signal.remez(16, [0, 0.1, 0.2, 0.5], [1, 0])
+    dut = FIR(taps)
+    inp = np.random.uniform(-1, 1, 64)
+
+    assert_sim_match(dut, None, inp,
+                     simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL, SIM_GATE],
+                     dir_path='/home/gaspar/git/pyhacores/playground')
 
 
 def test_remez32():
