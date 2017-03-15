@@ -5,6 +5,9 @@ from pyhacores.fsk_demodulator.model import FSKDemodulator
 from pyhacores.fsk_modulator.model import FSKModulator
 
 
+class TestFSKDemodulator:
+    pass
+
 def test_basic():
     # test signal
     samples_per_symbol = 4

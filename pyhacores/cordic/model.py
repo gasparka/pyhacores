@@ -7,17 +7,13 @@ from pyha.common.hwsim import HW
 from pyha.common.sfix import resize, Sfix, right_index, left_index, fixed_wrap, fixed_truncate, ComplexSfix
 
 
-# Decent cordic overview
-# readable paper -> http://www.andraka.com/files/crdcsrvy.pdf
-# vhdl implementation -> https://github.com/Nuand/bladeRF/blob/master/hdl/fpga/ip/nuand/synthesis/cordic.vhd
-
 class CordicMode(Enum):
     VECTORING, ROTATION = range(2)
 
 
 class Cordic(HW):
     """
-    CORDIC algorithm.
+    CORDIC algorithm. No model is
 
     readable paper -> http://www.andraka.com/files/crdcsrvy.pdf
 
@@ -34,15 +30,43 @@ class Cordic(HW):
         self.phase_lut = [float(np.arctan(2 ** -i) / np.pi) for i in range(self.iterations)]
         self.phase_lut_fix = Const([Sfix(x, 0, -24) for x in self.phase_lut])
 
-        # todo: this would fail GATE simulation, no errors, quick RTL inspection looks OK
-        # self.phase_lut_fix = Const(self.phase_lut)
-
         # pipeline registers
-        self.x = [Sfix()] * self.iterations
-        self.y = [Sfix()] * self.iterations
-        self.phase = [Sfix()] * self.iterations
+        # give 1 extra bit, as there is stuff like CORDIC gain.. in some cases 2 bits may be needed!
+        # there will be CORDIC gain + abs value held by x can be > 1
+        self.x = [Sfix(0, 1, -17, overflow_style=fixed_wrap, round_style=fixed_truncate)] * self.iterations
+        self.y = [Sfix(0, 1, -17, overflow_style=fixed_wrap, round_style=fixed_truncate)] * self.iterations
+        self.phase = [Sfix(0, 1, -24, overflow_style=fixed_wrap, round_style=fixed_truncate)] * self.iterations
 
         self._delay = self.iterations
+
+    def initial_step(self, phase, x, y):
+        """
+        CORDIC works in only 1 quadrant, this performs steps to make it usable on other qudrants.
+        """
+        self.next.x[0] = x
+        self.next.y[0] = y
+        self.next.phase[0] = phase
+        if self.mode == CordicMode.ROTATION:
+            if phase > 0.5:
+                # > np.pi/2
+                self.next.x[0] = -x
+                self.next.phase[0] = phase - 1.0
+            elif phase < -0.5:
+                # < -np.pi/2
+                self.next.x[0] = -x
+                self.next.phase[0] = phase + 1.0
+
+        elif self.mode == CordicMode.VECTORING:
+            if x < 0.0 and y > 0.0:
+                # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
+                self.next.x[0] = -x
+                self.next.y[0] = -y
+                self.next.phase[0] = Sfix(1.0, phase)
+            elif x < 0.0 and y < 0.0:
+                # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
+                self.next.x[0] = -x
+                self.next.y[0] = -y
+                self.next.phase[0] = Sfix(-1.0, phase)
 
     def main(self, x, y, phase):
         """
@@ -51,97 +75,91 @@ class Cordic(HW):
         """
         self.initial_step(phase, x, y)
 
+        # pipelined CORDIC
         for i in range(len(self.phase_lut_fix) - 1):
-            self.next.x[i + 1], self.next.y[i + 1], self.next.phase[i + 1] = \
-                self.pipeline_step(i, self.x[i], self.y[i], self.phase[i], self.phase_lut_fix[i])
+            if self.mode == CordicMode.ROTATION:
+                direction = self.phase[i] > 0
+            elif self.mode == CordicMode.VECTORING:
+                direction = self.y[i] < 0
+
+            if direction:
+                self.next.x[i + 1] = self.x[i] - (self.y[i] >> i)
+                self.next.y[i + 1] = self.y[i] + (self.x[i] >> i)
+                self.next.phase[i + 1] = self.phase[i] - self.phase_lut_fix[i]
+            else:
+                self.next.x[i + 1] = self.x[i] + (self.y[i] >> i)
+                self.next.y[i + 1] = self.y[i] - (self.x[i] >> i)
+                self.next.phase[i + 1] = self.phase[i] + self.phase_lut_fix[i]
 
         return self.x[-1], self.y[-1], self.phase[-1]
 
-    def initial_step(self, phase, x, y):
+
+class ToPolar(HW):
+    """
+    Converts IQ to polar form, returning 'abs' and 'angle/pi'.
+    """
+
+    def __init__(self):
+        self.core = Cordic(13, CordicMode.VECTORING)
+        self.out_abs = Sfix(0, 0, -17, round_style=fixed_truncate)
+        self.out_angle = Sfix(0, 0, -17, round_style=fixed_truncate)
+
+        self._delay = self.core.iterations + 1
+
+    def main(self, c):
         """
-        CORDIC works in only 1 quadrant, this performs steps to make it usable on other qudrants as well.
+        :type c: ComplexSfix
+        :return: abs (gain corrected) angle (in 1 to -1 range)
         """
-        self.next.x[0] = x
-        self.next.y[0] = y
-        self.next.phase[0] = phase
-        if self.mode == CordicMode.ROTATION:
-            if phase > 0.5:
-                # > np.pi/2
-                self.next.x[0] = resize(-x, size_res=x)
-                self.next.phase[0] = resize(phase - 1.0, size_res=phase)
-            elif phase < -0.5:
-                # < -np.pi/2
-                self.next.x[0] = resize(-x, size_res=x)
-                self.next.phase[0] = resize(phase + 1.0, size_res=phase)
+        phase = Sfix(0.0, 0, -24)
 
-        elif self.mode == CordicMode.VECTORING:
-            if x < 0.0 and y > 0.0:
-                # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
-                self.next.x[0] = resize(-x, size_res=x)
-                self.next.y[0] = resize(-y, size_res=y)
-                self.next.phase[0] = Sfix(1.0, phase)
-            elif x < 0.0 and y < 0.0:
-                # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
-                self.next.x[0] = resize(-x, size_res=x)
-                self.next.y[0] = resize(-y, size_res=y)
-                self.next.phase[0] = Sfix(-1.0, phase)
+        abs, _, angle = self.core.main(c.real, c.imag, phase)
 
-    def pipeline_step(self, i, x, y, p, adj):
-        """
-        Core combinatory part, this will be pipeline
+        # get rid of CORDIC gain and extra bits
+        self.next.out_abs = abs * (1.0 / 1.646760)
+        self.next.out_angle = angle
+        return self.out_abs, self.out_angle
 
-        :param i: current pipeline step
-        :param adj: phase adjustment
-        """
-        if self.mode == CordicMode.ROTATION:
-            direction = p > 0
-        elif self.mode == CordicMode.VECTORING:
-            direction = y < 0
-
-        if direction:
-            next_x = resize(x - (y >> i), size_res=x, overflow_style=fixed_wrap)
-            next_y = resize(y + (x >> i), size_res=y, overflow_style=fixed_wrap)
-            next_phase = resize(p - adj, size_res=p, overflow_style=fixed_wrap)
-        else:
-            next_x = resize(x + (y >> i), size_res=x, overflow_style=fixed_wrap)
-            next_y = resize(y - (x >> i), size_res=y, overflow_style=fixed_wrap)
-            next_phase = resize(p + adj, size_res=p, overflow_style=fixed_wrap)
-        return next_x, next_y, next_phase
+    def model_main(self, cin):
+        # note that angle in -1..1 range
+        rabs = [np.abs(x) for x in cin]
+        angle = [np.angle(x) / np.pi for x in cin]
+        return rabs, angle
 
 
-    def model_main(self, x, y, phase):
-        # this model uses (y * (2 ** -i)) for shift right. meaning it loses no precision for this operation
-        # for that reason model and hw_model will not be perfectly matched, can expect 1e-4 to 1e-5 rtol/atol
-        # actually not 100% sure that is the reason for strange behaviour
-        def cord_model(x, y, phase):
-            if self.mode == CordicMode.ROTATION:
-                if phase > 0.5:
-                    x = -x
-                    phase -= 1.0
-                elif phase < -0.5:
-                    x = -x
-                    phase += 1.0
-            elif self.mode == CordicMode.VECTORING:
-                if x < 0.0 and y > 0.0:
-                    # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
-                    x = -x
-                    y = -y
-                    phase = 1.0
-                elif x < 0.0 and y < 0.0:
-                    # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
-                    x = -x
-                    y = -y
-                    phase = -1.0
+class Angle(HW):
+    """
+    Eaual to Numpy.angle()/pi
+    """
 
-            for i, adj in enumerate(self.phase_lut):
-                if self.mode == CordicMode.ROTATION:
-                    sign = 1 if phase > 0 else -1
-                elif self.mode == CordicMode.VECTORING:
-                    sign = 1 if y < 0 else -1
-                x, y, phase = x - sign * (y * (2 ** -i)), y + sign * (x * (2 ** -i)), phase - sign * adj
-            return x, y, phase
+    def __init__(self):
+        self.core = ToPolar()
+        self._delay = self.core._delay
 
-        return [cord_model(xx, yy, pp) for xx, yy, pp in zip(x, y, phase)]
+    def main(self, c):
+        _, angle = self.core.main(c)
+        return angle
+
+    def model_main(self, cin):
+        # note that angle in -1..1 range
+        return [np.angle(x) / np.pi for x in cin]
+
+
+class Abs(HW):
+    """
+    Eaual to Numpy.abs()
+    """
+
+    def __init__(self):
+        self.core = ToPolar()
+        self._delay = self.core._delay
+
+    def main(self, c):
+        abs, _ = self.core.main(c)
+        return abs
+
+    def model_main(self, cin):
+        return [np.abs(x) for x in cin]
 
 
 # todo: i think this would be better as named Exp
@@ -151,8 +169,8 @@ class NCO(HW):
 
     :param cordic_iterations: performace/resource usage trade off
     """
-    def __init__(self, cordic_iterations=16):
 
+    def __init__(self, cordic_iterations=16):
         self.cordic = Cordic(cordic_iterations, CordicMode.ROTATION)
         self.phase_acc = Sfix()
         self._delay = self.cordic.iterations + 1
@@ -180,76 +198,3 @@ class NCO(HW):
     def model_main(self, phase_list):
         p = np.cumsum(phase_list * np.pi)
         return np.exp(p * 1j)
-
-
-class ToPolar(HW):
-    """
-    Converts IQ to polar.
-    """
-
-    def __init__(self):
-        self.core = Cordic(13, CordicMode.VECTORING)
-        self.out_abs = Sfix()
-        self.out_angle = Sfix()
-
-        self._delay = self.core.iterations + 1
-
-    def main(self, c):
-        """
-        :param c: baseband in, internal sizes are derived from this.
-        :type c: ComplexSfix
-        :return: abs (gain corrected) angle (in 1 to -1 range)
-        """
-        phase = Sfix(0.0, 0, -24)
-
-        # give 1 extra bit, as there is stuff like CORDIC gain.. in some cases 2 bits may be needed!
-        # there will be CORDIC gain + abs value held by x can be > 1
-        # remove 1 bit from fractional part, to keep 18 bit numbers
-        x = resize(c.real, left_index(c.real) + 1, right_index(c.real) + 1, round_style=fixed_truncate)
-        y = resize(c.imag, left_index(c.imag) + 1, right_index(c.imag) + 1, round_style=fixed_truncate)
-
-        abs, _, angle = self.core.main(x, y, phase)
-
-        # get rid of CORDIC gain and extra bits
-        self.next.out_abs = resize(abs * (1.0 / 1.646760), c.imag, round_style=fixed_truncate)
-        self.next.out_angle = resize(angle, c.imag, round_style=fixed_truncate)
-        return self.out_abs, self.out_angle
-
-    def model_main(self, cin):
-        # note that angle in -1..1 range
-        rabs = [np.abs(x) for x in cin]
-        angle = [np.angle(x) / np.pi for x in cin]
-        return rabs, angle
-
-
-class Angle(HW):
-    """
-    Wrapper around ToPolar. Abs output will be optimized away.
-    """
-    def __init__(self):
-        self.core = ToPolar()
-        self._delay = self.core._delay
-
-    def main(self, c):
-        _, angle = self.core.main(c)
-        return angle
-
-    def model_main(self, cin):
-        # note that angle in -1..1 range
-        return [np.angle(x) / np.pi for x in cin]
-
-
-class Abs(HW):
-    """
-    Wrapper around ToPolar. Angle output will be optimized away.
-    """
-    def __init__(self):
-        self.core = ToPolar()
-        self._delay = self.core._delay
-
-    def main(self, c):
-        abs, _ = self.core.main(c)
-        return abs
-
-    def model_main(self, cin):
-        return [np.abs(x) for x in cin]
