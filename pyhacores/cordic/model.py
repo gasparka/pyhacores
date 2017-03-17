@@ -13,7 +13,7 @@ class CordicMode(Enum):
 
 class Cordic(HW):
     """
-    CORDIC algorithm. No model is
+    CORDIC algorithm.
 
     readable paper -> http://www.andraka.com/files/crdcsrvy.pdf
 
@@ -162,32 +162,24 @@ class Abs(HW):
         return [np.abs(x) for x in cin]
 
 
-# todo: i think this would be better as named Exp
 class NCO(HW):
     """
-    Signal generator. Input phase must be normalized to -1 to 1 range!
-
-    :param cordic_iterations: performace/resource usage trade off
+    Baseband signal generator. Integrated phase accumulator.
     """
-
-    def __init__(self, cordic_iterations=16):
-        self.cordic = Cordic(cordic_iterations, CordicMode.ROTATION)
-        self.phase_acc = Sfix()
+    def __init__(self):
+        self.cordic = Cordic(16, CordicMode.ROTATION)
+        self.phase_acc = Sfix(0, 0, -24, overflow_style=fixed_wrap, round_style=fixed_truncate)
         self._delay = self.cordic.iterations + 1
 
     def main(self, phase_inc):
         """
-        18 bits precision.
-
         :param phase_inc: amount of rotation applied for next clock cycle, must be normalized to -1 to 1.
-        :return: baseband signal
         :rtype: ComplexSfix
         """
-        self.next.phase_acc = resize(self.phase_acc + phase_inc, size_res=phase_inc, overflow_style=fixed_wrap,
-                                     round_style=fixed_truncate)
+        self.next.phase_acc = self.phase_acc + phase_inc
 
-        start_x = Sfix(1.0 / 1.646760, 1, -17)  # gets rid of cordic gain, could add amplitude modulation here
-        start_y = Sfix(0.0, 1, -17)  # 1 bit for gains, remove later
+        start_x = Sfix(1.0 / 1.646760, 0, -17)  # gets rid of cordic gain, could add amplitude modulation here
+        start_y = Sfix(0.0, 0, -17)
 
         x, y, phase = self.cordic.main(start_x, start_y, self.phase_acc)
         xr = resize(x, 0, -17)
@@ -196,5 +188,5 @@ class NCO(HW):
         return retc
 
     def model_main(self, phase_list):
-        p = np.cumsum(phase_list * np.pi)
+        p = np.cumsum(np.array(phase_list) * np.pi)
         return np.exp(p * 1j)
