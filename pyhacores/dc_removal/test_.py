@@ -1,5 +1,4 @@
 import pytest
-from pyha.common.sfix import Sfix
 from pyha.simulation.simulation_interface import assert_sim_match
 
 from pyhacores.dc_removal.model import DCRemoval
