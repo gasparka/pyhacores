@@ -1,6 +1,6 @@
 from pyha.simulation.simulation_interface import assert_sim_match
 
-from pyhacores.fsk_modulator.model import FSKModulator
+from pyhacores.under_construction.fsk_modulator.model import FSKModulator
 
 
 def test_basic():

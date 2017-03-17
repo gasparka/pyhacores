@@ -1,8 +1,9 @@
 import numpy as np
 from pyha.common.sfix import ComplexSfix
 from pyha.simulation.simulation_interface import assert_sim_match
-from pyhacores.fsk_demodulator.model import FSKDemodulator
-from pyhacores.fsk_modulator.model import FSKModulator
+
+from pyhacores.under_construction.fsk_demodulator.model import FSKDemodulator
+from pyhacores.under_construction.fsk_modulator.model import FSKModulator
 
 
 class TestFSKDemodulator:

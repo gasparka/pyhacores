@@ -14,7 +14,7 @@ into SDR. Implementation uses NCO component, that in turn uses CORDIC algorithm 
     :param fs: Sample rate
     """
 
-    # todo: this should handle 'sps', but needs upsamper
+    # todo: this should handle 'sps', but needs upsampler
     def __init__(self, deviation, fs):
         """
         :param deviation:

@@ -1,7 +1,7 @@
 import pytest
 from pyha.simulation.simulation_interface import assert_sim_match
 
-from pyhacores.dc_removal.model import DCRemoval
+from pyhacores.under_construction.dc_removal.model import DCRemoval
 
 
 def test_basic():

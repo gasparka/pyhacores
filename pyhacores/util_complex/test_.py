@@ -1,8 +1,5 @@
 import numpy as np
-
-from pyha.common.sfix import ComplexSfix
 from pyha.simulation.simulation_interface import assert_sim_match
-
 from pyhacores.util_complex.model import Conjugate, ComplexMultiply
 
 

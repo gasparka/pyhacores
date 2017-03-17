@@ -11,7 +11,7 @@ class CRC16(HW):
         :param xor: feedback value
         """
         self.xor = Const(xor)
-        # NB! tools generally raport fibo init value...need to convert it!
+        # NB! tools generally report fibo init value...need to convert it!
         self.init_galois = Const(init_galois)
         self.lfsr = init_galois
 
@@ -19,8 +19,6 @@ class CRC16(HW):
 
     def main(self, din, reload):
         """
-        Must be reloaded for each calculation.
-
         :param din: bit in
         :param reload: when True, reloads the initial value to LFSR
         :return: current LFSR value
