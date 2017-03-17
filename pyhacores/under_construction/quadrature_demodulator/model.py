@@ -33,10 +33,7 @@ class QuadratureDemodulator(HW):
 
     def main(self, c):
         """
-
-        :param c: baseband
         :type c: ComplexSfix
-        :return: demodulated signal
         :rtype: Sfix
         """
         conj = self.conjugate.main(c)
@@ -54,39 +51,3 @@ class QuadratureDemodulator(HW):
         fix_gain = self.gain * demod
         return fix_gain
 
-
-# test modules
-class QuadratureDemodulatorPartial0(HW):
-    def __init__(self, gain):
-        self.gain = gain
-        self.conjugate = Conjugate()
-        self.prev = ComplexSfix()
-        self._delay = self.conjugate._delay
-
-    def main(self, c):
-        r = self.conjugate.main(c)
-        return r
-
-    def model_main(self, c):
-        demod = np.conjugate(c[:-1])
-        return demod
-
-
-class QuadratureDemodulatorPartial1(HW):
-    def __init__(self, gain):
-        self.gain = gain
-
-        self.conjugate = Conjugate()
-        self.complex_mult = ComplexMultiply()
-        self.prev = ComplexSfix()
-        self._delay = self.conjugate._delay + \
-                     self.complex_mult._delay
-
-    def main(self, c):
-        r = self.conjugate.main(c)
-        ra = self.complex_mult.main(c, r)
-        return ra
-
-    def model_main(self, c):
-        demod = c[1:] * np.conjugate(c[:-1])
-        return demod

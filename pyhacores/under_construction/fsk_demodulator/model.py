@@ -2,7 +2,7 @@ import numpy as np
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix, ComplexSfix
 from pyhacores.moving_average.model import MovingAverage
-from pyhacores.quadrature_demodulator.model import QuadratureDemodulator
+from pyhacores.under_construction.quadrature_demodulator.model import QuadratureDemodulator
 
 
 class FSKDemodulator(HW):

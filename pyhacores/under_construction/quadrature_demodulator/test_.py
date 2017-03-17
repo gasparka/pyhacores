@@ -8,8 +8,7 @@ from pyha.common.util import load_gnuradio_file
 from pyha.simulation.simulation_interface import assert_sim_match, SIM_MODEL, SIM_HW_MODEL, \
     SIM_RTL, plot_assert_sim_match
 
-from pyhacores.quadrature_demodulator.model import QuadratureDemodulatorPartial0, QuadratureDemodulatorPartial1, \
-    QuadratureDemodulator
+from pyhacores.under_construction.quadrature_demodulator.model import QuadratureDemodulator
 
 
 class TestFm:
@@ -28,25 +27,6 @@ class TestFm:
 
         self.demod_gain = fs / (2 * np.pi * deviation)
 
-    def test_partial_conj(self):
-        inputs = self.mod
-
-        dut = QuadratureDemodulatorPartial0(gain=self.demod_gain)
-        assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
-                         None, inputs,
-                         rtol=1e-4,
-                         simulations=[SIM_MODEL, SIM_HW_MODEL]
-                         )
-
-    def test_partial_conj_cmult(self):
-        inputs = self.mod
-
-        dut = QuadratureDemodulatorPartial1(gain=self.demod_gain)
-        assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
-                         None, inputs,
-                         rtol=1e-4,
-                         simulations=[SIM_MODEL, SIM_HW_MODEL]
-                         )
 
     def test_demod(self):
         inputs = self.mod
@@ -77,17 +57,6 @@ class TestPhantom2:
         inputs = inputs[18000:19000]
         self.mod = inputs
         self.demod_gain = 1.5
-
-    def test_partial_conj_cmult(self):
-        inputs = self.mod
-
-        dut = QuadratureDemodulatorPartial1(gain=self.demod_gain)
-        assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
-                         None, inputs,
-                         rtol=1e-4,
-                         atol=1e-4,
-                         simulations=[SIM_MODEL, SIM_HW_MODEL, SIM_RTL]
-                         )
 
     def test_demod(self):
         pytest.xfail('Has RTL/HWSIM mismatch in noise region..TODO')
