@@ -1,3 +1,4 @@
+from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.sfix import Sfix, fixed_truncate, fixed_wrap
 
@@ -31,8 +32,8 @@ class FIR(HW):
         self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         # constants
-        # self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
-        self.taps_fix_reversed = [Sfix(x, 0, -17) for x in reversed(self.taps)]
+        self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
+        # self.taps_fix_reversed = [Sfix(x, 0, -17) for x in reversed(self.taps)]
         self._delay = 3
 
     def main(self, x):
