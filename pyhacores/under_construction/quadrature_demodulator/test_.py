@@ -34,7 +34,7 @@ class TestFm:
 
         dut = QuadratureDemodulator(gain=self.demod_gain)
         # out = debug_assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
-        assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
+        assert_sim_match(dut,
                          expect, inputs,
                          rtol=1e-3,
                          atol=1e-3,

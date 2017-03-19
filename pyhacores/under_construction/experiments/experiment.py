@@ -7,6 +7,7 @@ from pyha.simulation.simulation_interface import assert_sim_match, SIM_HW_MODEL,
     plot_assert_sim_match, debug_assert_sim_match
 from scipy import signal
 import numpy as np
+from scipy.signal import firwin
 
 from pyhacores.filter.fir.model import FIR
 
@@ -35,16 +36,20 @@ class Experiment(HW):
 
 
 class State(Enum):
-    ENUM0, ENUM1 = range(2)
+    ENUM0, ENUM1, ENUM2, ENUM3 = range(4)
 
 class Experiment2(HW):
-    """ FIR filter, taps will be normalized to sum 1 """
     def __init__(self):
-        taps1 = signal.remez(16, [0, 0.1, 0.2, 0.5], [1, 0])
-        taps2 = signal.remez(16, [0, 0.2, 0.3, 0.5], [1, 0])
+        taps1 = firwin(128, 0.1)
+        taps2 = firwin(128, 0.2)
+        taps3 = firwin(128, 0.3)
+        taps4 = firwin(128, 0.4)
+        print(taps1)
+
+        print(taps2)
 
         # registers
-        self.fir = [FIR(taps1), FIR(taps2)]
+        self.fir = [FIR(taps1), FIR(taps2), FIR(taps3), FIR(taps4)]
         self.state = State.ENUM0
 
         # constants
@@ -52,15 +57,25 @@ class Experiment2(HW):
 
     def main(self, x):
 
-        if self.state == State.ENUM0:
-            tmp = self.fir[0].main(x)
-            self.next.state = State.ENUM1
-        else:
-            tmp = self.fir[1].main(x)
-            self.next.state = State.ENUM0
-        # tmp = self.fir[0].main(x)
-        # tmp = self.fir[1].main(x)
-        return self.fir[0].out, self.fir[1].out
+        # if self.state == State.ENUM0:
+        #     tmp = self.fir[0].main(x)
+        #     self.next.state = State.ENUM1
+        # elif self.state == State.ENUM1:
+        #     tmp = self.fir[1].main(x)
+        #     self.next.state = State.ENUM2
+        # elif self.state == State.ENUM2:
+        #     tmp = self.fir[2].main(x)
+        #     self.next.state = State.ENUM3
+        # else:
+        #     tmp = self.fir[3].main(x)
+        #     self.next.state = State.ENUM0
+
+        tmp = self.fir[0].main(x)
+        tmp = self.fir[1].main(x)
+        tmp = self.fir[2].main(x)
+        tmp = self.fir[3].main(x)
+
+        return self.fir[0].out, self.fir[1].out, self.fir[2].out, self.fir[3].out
 
     def model_main(self, x):
         return [fir.model_main(x) for fir in self.fir]

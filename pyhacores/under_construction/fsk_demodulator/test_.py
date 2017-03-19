@@ -31,9 +31,8 @@ def test_basic():
 
     dut = FSKDemodulator(deviation, fs, samples_per_symbol)
 
-    assert_sim_match(dut, [ComplexSfix(left=0, right=-17)],
+    assert_sim_match(dut,
                      None, tx_signal,
-                     rtol=1e-4,
                      atol=1e-4,
                      skip_first=samples_per_symbol,  # skip first moving average transient
                      )

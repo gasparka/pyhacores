@@ -17,6 +17,4 @@ def test_basic():
 
     dut = FSKModulator(deviation, fs)
 
-    assert_sim_match(dut, [bool],
-                     None, data,
-                     rtol=1e-4)
+    assert_sim_match(dut, None, data)
