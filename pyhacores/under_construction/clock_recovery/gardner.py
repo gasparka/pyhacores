@@ -9,32 +9,50 @@ class GardnerTimingRecovery:
     def __init__(self, sps):
         # sps must be divisible by 2 -> required by gardner
         assert sps in [2, 4]
-        self.d = sps - 1
+
+        self.error_divide = 4
+        self.d = 3
         self.sps = sps
         self.interpolator = Interpolator()
         self.out_int = [0.0] * self.sps
         self.sps_counter = 0
+
+        self.lim = sps
 
     def model_main(self, xlist):
         err_debug = []
         mu_debug = []
         ret = []
 
+        ii = 0
+        ll = 0
+        delay = [0.0] * self.sps
         for sample in xlist:
+            delay = [sample] + delay[:-1]
             i_sample = self.interpolator.filter(sample, self.d % 1)
             self.out_int.append(i_sample)
 
             self.sps_counter += 1
-            if self.sps_counter >= self.sps:
+            if self.sps_counter >= self.lim:
+                ii += 1
                 self.sps_counter = 0
 
                 intd = int(floor(self.d))
+                # if ii == 9:
+                #     # 1, 4, 5 BEST
+                #     b = 1
+                #     e = (self.out_int[-1 - intd+b] - self.out_int[-self.sps - intd+b]) * self.out_int[-self.sps // 2 - intd+b]
+                # else:
                 e = (self.out_int[-1 - intd] - self.out_int[-self.sps - intd]) * self.out_int[-self.sps // 2 - intd]
-                self.d += e / 4
+                self.d += e / self.error_divide
+
+                self.d = self.d % (self.sps+1+3)
+                print(self.d)
 
                 mu_debug.append(self.d)
                 err_debug.append(e)
                 ret.append(self.out_int[-1 - intd + 1])
+                # self.lim = int(self.d)
 
         return ret, err_debug, mu_debug
 
