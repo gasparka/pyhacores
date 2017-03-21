@@ -3,6 +3,7 @@ from pyhacores.under_construction.interpolator.model import Interpolator
 
 class GardnerTimingRecovery:
     def __init__(self, sps):
+        # sps must be divisible by 2 -> required by gardner
         self.mu = 1.0
         self.sps = sps
         self.interpolator = Interpolator()
@@ -13,7 +14,7 @@ class GardnerTimingRecovery:
         err_debug = []
         ret = []
         mu_debug = []
-        d = 1
+        d = 3
 
 
         for sample in xlist:
@@ -28,15 +29,15 @@ class GardnerTimingRecovery:
                 #     d = 3
                 self.sps_counter = 0
                 e = (self.out_int[-1 - d] - self.out_int[-self.sps - d]) * self.out_int[-self.sps // 2 - d]
-                self.mu -= e/2
+                self.mu -= e/4
                 if self.mu < 0.0:
-                    self.mu = 0.0
+                    self.mu = -self.mu
                     d += 1
-                    print('d:', d)
+                    print('d:', d, ' mu: ', self.mu)
                 if self.mu > 1.0:
-                    self.mu = 0.0
-                    d += 1
-                    print('d:', d)
+                    self.mu = self.mu - 1.0
+                    d -= 1
+                    print('d:', d, ' mu: ', self.mu)
                 mu_debug.append(self.mu)
                 err_debug.append(e)
                 ret.append(self.out_int[-1 - d+1])
