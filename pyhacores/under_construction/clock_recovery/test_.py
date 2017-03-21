@@ -20,7 +20,7 @@ class TestGardnerTimingRecovery:
     @pytest.mark.parametrize('sps', [2, 4, 8])
     @pytest.mark.parametrize('int_delay', range(8))
     def test_int_delay(self, sps, int_delay):
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 4, sps, int_delay)
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, sps, int_delay)
         recover = GardnerTimingRecovery(sps)
 
         ret, err, mu = recover.model_main(inp)
@@ -31,7 +31,7 @@ class TestGardnerTimingRecovery:
     @pytest.mark.parametrize('sps', [2, 4, 8])
     @pytest.mark.parametrize('fract_delay', np.array(range(10)) / 10)
     def test_fract_delay(self, sps, fract_delay):
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 4, sps, fract_delay=fract_delay)
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, sps, fract_delay=fract_delay)
         recover = GardnerTimingRecovery(sps)
 
         ret, err, mu = recover.model_main(inp)
