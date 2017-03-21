@@ -145,8 +145,16 @@ class Interpolator:
         self.internals = [0] * 8
 
     def filter(self, x, mu):
+        """
+        When mu closes 1.0, then no additional delay is added. Total delay is 3 - FIR group delay.
+        When mu closes 0.0, then 1 sample of delay is added. Total delay is 4.
+
+        :param x:
+        :param mu:
+        :return:
+        """
         mu = abs(mu)
-        filter_i = int(np.round(mu * 128)) % 129
+        filter_i = int(np.round(mu * 128))
         # if filter_i > 128:
         #   filter_i = 128
         self.internals = [x] + self.internals[:-1]
