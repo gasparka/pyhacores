@@ -154,6 +154,10 @@ class Interpolator:
         :return:
         """
         filter_i = 128 - int(np.round(mu * 128))
+        # filter_i = int(np.round(mu * 128))
+        print(filter_i)
+        # if filter_i == 127:
+        #     filter_i = 128
         # if filter_i > 128:
         #   filter_i = 128
         self.internals = [x] + self.internals[:-1]

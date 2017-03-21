@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.tests.helper import pytest
 from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
 
 from pyhacores.under_construction.clock_recovery.gardner import GardnerTimingRecovery
 
@@ -26,24 +27,107 @@ def insig(bits, sps, int_delay=0, fd=0.0):
 
 
 class TestGardnerTimingRecovery:
-    @pytest.mark.parametrize('sps', [2, 4])
-    @pytest.mark.parametrize('int_delay', range(8))
-    def test_int_delay(self, sps, int_delay):
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, sps, int_delay)
-        recover = GardnerTimingRecovery(sps)
+    def setup_class(self):
+        self.sps = 4
+
+    @pytest.mark.parametrize('int_delay', range(6))
+    def test_int_delay(self, int_delay):
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, int_delay)
+        recover = GardnerTimingRecovery(self.sps)
 
         ret, err, mu = recover.model_main(inp)
 
         assert err[-8:] == [0] * 8
         assert ret[-4:] == [1, -1, 1, -1] or ret[-4:] == [-1, 1, -1, 1]
 
-    @pytest.mark.parametrize('sps', [2, 4])
     @pytest.mark.parametrize('fract_delay', np.array(range(10)) / 10)
-    def test_fract_delay(self, sps, fract_delay):
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, sps, fd=fract_delay)
-        recover = GardnerTimingRecovery(sps)
+    def test_fract_delay(self, fract_delay):
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps , fd=fract_delay)
+        recover = GardnerTimingRecovery(self.sps )
 
         ret, err, mu = recover.model_main(inp)
 
         np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
 
+    @pytest.mark.parametrize('fract_delay', np.array(range(10)) / 10)
+    @pytest.mark.parametrize('int_delay', [1, 2, 3])
+    def test_leading_noise(self, fract_delay, int_delay):
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, int_delay, fd=fract_delay)
+        inp = np.append(np.random.uniform(-1, 1, 128), inp)
+        recover = GardnerTimingRecovery(self.sps)
+
+        ret, err, mu = recover.model_main(inp)
+
+        print(recover.d)
+        try:
+            np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
+        except:
+            plt.plot(err)
+            plt.plot(mu)
+            plt.show()
+
+
+    def test_up2(self):
+        # bug 3->4
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 2, fd=0.3)
+        recover = GardnerTimingRecovery(self.sps)
+
+        ret, err, mu = recover.model_main(inp)
+        plt.plot(err)
+        plt.plot(mu)
+        plt.plot(np.array(mu)%1)
+        plt.grid()
+        plt.show()
+
+    def test_upbug1(self):
+        # bug 4->5
+        # 3->4 OK
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 3, fd=0.3)
+        recover = GardnerTimingRecovery(self.sps)
+
+        ret, err, mu = recover.model_main(inp)
+        plt.plot(err)
+        plt.plot(mu)
+        plt.plot(np.array(mu)%1)
+        plt.grid()
+        plt.show()
+
+    def test_downbug2(self):
+        # bug 4->3
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
+        recover = GardnerTimingRecovery(self.sps)
+        recover.d = 4
+
+        ret, err, mu = recover.model_main(inp)
+        plt.plot(err)
+        plt.plot(mu)
+        plt.plot(np.array(mu)%1)
+        plt.grid()
+        plt.show()
+
+    def test_upbug3(self):
+        # bug 5->6
+        # 4-5 OK
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 0, fd=0.3)
+        recover = GardnerTimingRecovery(self.sps)
+        recover.d = 4
+
+        ret, err, mu = recover.model_main(inp)
+        plt.plot(err)
+        plt.plot(mu)
+        plt.plot(np.array(mu)%1)
+        plt.grid()
+        plt.show()
+
+    def test_upbug44(self):
+        # bug 2->3 TOTAL OSCILLATION
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
+        recover = GardnerTimingRecovery(self.sps)
+        recover.d = 2
+
+        ret, err, mu = recover.model_main(inp)
+        plt.plot(err)
+        plt.plot(mu)
+        plt.plot(np.array(mu)%1)
+        plt.grid()
+        plt.show()
