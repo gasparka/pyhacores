@@ -153,7 +153,6 @@ class Interpolator:
         :param mu:
         :return:
         """
-        mu = abs(mu)
         filter_i = int(np.round(mu * 128))
         # if filter_i > 128:
         #   filter_i = 128
