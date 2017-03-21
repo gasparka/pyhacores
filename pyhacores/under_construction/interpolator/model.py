@@ -145,7 +145,8 @@ class Interpolator:
         self.internals = [0] * 8
 
     def filter(self, x, mu):
-        filter_i = int(np.round(mu * 128))
+        mu = abs(mu)
+        filter_i = int(np.round(mu * 128)) % 129
         # if filter_i > 128:
         #   filter_i = 128
         self.internals = [x] + self.internals[:-1]
