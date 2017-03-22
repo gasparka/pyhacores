@@ -49,17 +49,17 @@ class GardnerTimingRecovery:
                     if self.test_inject_error is not None:
                         self.mu = self.mu + self.test_inject_error
                     else:
-                        self.mu = self.mu - e / 8
+                        self.mu = self.mu + e / 4
 
                 if self.mu < 0.0:
                     skip_next = True
                     self.mu = -self.mu
-                    d = (d + 1) % self.max_int_delay
+                    d = (d - 1) % self.max_int_delay
                     print('d:', d, ' mu: ', self.mu)
                 if self.mu > 1.0:
                     skip_next = True
                     self.mu = self.mu - 1.0
-                    d = (d - 1) % self.max_int_delay
+                    d = (d + 1) % self.max_int_delay
                     print('d:', d, ' mu: ', self.mu)
                 mu_debug.append(d+self.mu)
                 err_debug.append(e)

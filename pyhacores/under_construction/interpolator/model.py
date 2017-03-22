@@ -161,7 +161,7 @@ class Interpolator:
         # if filter_i > 128:
         #   filter_i = 128
         self.internals = [x] + self.internals[:-1]
-        ff = [coef * tap for coef, tap in zip(taps[filter_i], self.internals)]
+        ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.internals)]
         return sum(ff)
 
 
