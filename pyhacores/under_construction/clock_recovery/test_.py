@@ -50,7 +50,7 @@ class TestGardnerTimingRecovery:
         np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
 
     @pytest.mark.parametrize('fract_delay', np.array(range(10)) / 10)
-    @pytest.mark.parametrize('int_delay', [1, 2, 3])
+    @pytest.mark.parametrize('int_delay', [1, 2, 3, 4])
     def test_leading_noise(self, fract_delay, int_delay):
         inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, int_delay, fd=fract_delay)
         inp = np.append(np.random.uniform(-1, 1, 128), inp)
@@ -58,92 +58,87 @@ class TestGardnerTimingRecovery:
 
         ret, err, mu = recover.model_main(inp)
 
-        # print(recover.d)
-        try:
-            np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
-        except:
-            plt.plot(err)
-            plt.plot(mu)
-            plt.show()
+        np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
 
 
-    def test_debug(self):
-        # bug 3->4
-        sps = 4
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, sps, 0, fd=0.0)
-        recover = GardnerTimingRecovery(sps, test_inject_error=0.05)
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        # plt.plot(np.array(mu)%1)
-        # plt.plot(np.diff(err))
-        # plt.plot(recover.out_int)
-        plt.grid()
-        plt.show()
+def test_debug():
+    # bug 3->4
+    sps = 4
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, sps, 0, fd=0.0)
+    recover = GardnerTimingRecovery(sps, test_inject_error=0.05)
+
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    # plt.plot(np.array(mu)%1)
+    # plt.plot(np.diff(err))
+    # plt.plot(recover.out_int)
+    plt.grid()
+    plt.show()
 
 
-    def test_up2(self):
-        # bug 3->4
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, self.sps, 2, fd=0.3)
-        recover = GardnerTimingRecovery(self.sps)
+def test_up2(self):
+    # bug 3->4
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, self.sps, 2, fd=0.3)
+    recover = GardnerTimingRecovery(self.sps)
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        plt.plot(np.array(mu)%1)
-        plt.grid()
-        plt.show()
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    plt.plot(np.array(mu)%1)
+    plt.grid()
+    plt.show()
 
-    def test_upbug1(self):
-        # bug 4->5
-        # 3->4 OK
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 3, fd=0.3)
-        recover = GardnerTimingRecovery(self.sps)
+def test_upbug1(self):
+    # bug 4->5
+    # 3->4 OK
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 3, fd=0.3)
+    recover = GardnerTimingRecovery(self.sps)
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        plt.plot(np.array(mu)%1)
-        plt.grid()
-        plt.show()
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    plt.plot(np.array(mu)%1)
+    plt.grid()
+    plt.show()
 
-    def test_downbug2(self):
-        # bug 4->3
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
-        recover = GardnerTimingRecovery(self.sps)
-        recover.d = 4
+def test_downbug2(self):
+    # bug 4->3
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
+    recover = GardnerTimingRecovery(self.sps)
+    recover.d = 4
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        plt.plot(np.array(mu)%1)
-        plt.grid()
-        plt.show()
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    plt.plot(np.array(mu)%1)
+    plt.grid()
+    plt.show()
 
-    def test_upbug3(self):
-        # bug 5->6
-        # 4-5 OK
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 0, fd=0.3)
-        recover = GardnerTimingRecovery(self.sps)
-        recover.d = 4
+def test_upbug3(self):
+    # bug 5->6
+    # 4-5 OK
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 0, fd=0.3)
+    recover = GardnerTimingRecovery(self.sps)
+    recover.d = 4
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        plt.plot(np.array(mu)%1)
-        plt.grid()
-        plt.show()
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    plt.plot(np.array(mu)%1)
+    plt.grid()
+    plt.show()
 
-    def test_upbug44(self):
-        # bug 2->3 TOTAL OSCILLATION
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
-        recover = GardnerTimingRecovery(self.sps)
-        recover.d = 2
+def test_upbug44(self):
+    # bug 2->3 TOTAL OSCILLATION
+    inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 1, fd=0.3)
+    recover = GardnerTimingRecovery(self.sps)
+    recover.d = 2
 
-        ret, err, mu = recover.model_main(inp)
-        plt.plot(err)
-        plt.plot(mu)
-        plt.plot(np.array(mu)%1)
-        plt.grid()
-        plt.show()
+    ret, err, mu = recover.model_main(inp)
+    plt.plot(err)
+    plt.plot(mu)
+    plt.plot(np.array(mu)%1)
+    plt.grid()
+    plt.show()
