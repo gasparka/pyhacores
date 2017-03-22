@@ -69,8 +69,9 @@ class TestGardnerTimingRecovery:
 
     def test_debug(self):
         # bug 3->4
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 16, self.sps, 0, fd=0.0)
-        recover = GardnerTimingRecovery(4)
+        sps = 2
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, sps, 0, fd=0.0)
+        recover = GardnerTimingRecovery(sps)
 
         ret, err, mu = recover.model_main(inp)
         plt.plot(err)
@@ -83,7 +84,7 @@ class TestGardnerTimingRecovery:
 
     def test_up2(self):
         # bug 3->4
-        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 8, self.sps, 2, fd=0.3)
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, self.sps, 2, fd=0.3)
         recover = GardnerTimingRecovery(self.sps)
 
         ret, err, mu = recover.model_main(inp)

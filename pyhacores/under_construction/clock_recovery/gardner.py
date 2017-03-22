@@ -13,13 +13,17 @@ class GardnerTimingRecovery:
         assert sps in [2, 4, 8]
 
         self.error_divide = 4
-        self.d = 6
+        self.d = 0
         self.sps = sps
+
+        # From the worst case sampling point, this + fractional delay shift to optimal sampling point
+        self.max_int_delay = sps
         self.interpolator = Interpolator()
         self.out_int = [0.0] * self.sps*4
         self.sps_counter = 0
 
         self.lim = sps
+
 
 
     def model_main(self, xlist):
@@ -32,10 +36,13 @@ class GardnerTimingRecovery:
         ll = 0
         f = interp1d(range(len(xlist)), xlist)
 
-        dd = [0.0] * 2
+        dd = [0.0] * 3
         f = False
         cnt = 0
         last_err = 0.0
+        ccc = 0
+        # plt.stem(xlist)
+        # plt.show()
         for sample in xlist:
             ii += 1
             i_sample = self.interpolator.filter(sample, self.d % 1)
@@ -63,41 +70,49 @@ class GardnerTimingRecovery:
 
                 # intd = int(floor(self.d))
 
-                intd = int(floor(dd[-1]))
+                # intd = int(floor(dd[-1]))
+                intd = int(floor(self.d))
 
                 # if lastd != intd or f:
-                #     # f = True
-                #     # cnt += 1
-                #     # if cnt > 2:
-                #     #     cnt = 0
-                #     #     f = False
+
+
+                # if lastd != intd or f:
+                #     f = True
+                #     cnt += 1
+                #     if cnt > 2 + ccc:
+                #         ccc += 1
+                #         cnt = 0
+                #         f = False
                 #     lastd = intd
-                #     e = last_err
-                #     self.sps_counter = -self.sps
+                #     e = 0
                 # else:
-                #     c = self.out_int[-1-intd]
-                #     p = self.out_int[-self.sps-intd]
-                #     m = self.out_int[-self.sps // 2-intd]
-                #     print(f'{c:.2f} {m:.2f} {p:.2f}')
-                #     e = (c - p) * m
-                #     last_err = e
-
-                if lastd != intd:
-                    lastd = intd
-                    e = last_err
-                    self.sps_counter = -self.sps
-
+                # intd = intd % 2
                 c = self.out_int[-1-intd]
                 p = self.out_int[-self.sps-intd]
                 m = self.out_int[-self.sps // 2-intd]
                 print(f'{c:.2f} {m:.2f} {p:.2f}')
+                # last_err = e
                 e = (c - p) * m
-                last_err = e
 
-                self.d += 0.05
+
+                # c = self.out_int[-1-intd]
+                # p = self.out_int[-self.sps-intd]
+                # m = self.out_int[-self.sps // 2-intd]
+                # print(f'{c:.2f} {m:.2f} {p:.2f}')
+                # e = (c - p) * m
+                # last_err = e
+
+
+                self.d = (self.d + 0.05) % self.max_int_delay
                 dd = [self.d] + dd[:-1]
 
+                # intd = int(floor(dd[-1]))
+                # intd = int(floor(self.d))
+                intd = int(floor(self.d))
                 if lastd != intd:
+                    lastd = intd
+                    e = 0
+                    self.sps_counter = -self.sps * lastd
 
                 # dd = [self.d % 1] + dd[:-1]
                 # self.d = self.d % (self.sps+1+3)
