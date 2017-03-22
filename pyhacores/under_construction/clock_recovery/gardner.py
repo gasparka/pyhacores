@@ -13,9 +13,9 @@ class GardnerTimingRecovery:
     def __init__(self, sps, test_inject_error=None):
         # sps must be divisible by 2 -> required by gardner
         assert sps in [2, 4, 8]
-        # From the worst case sampling point, this + fractional delay shift to optimal sampling point
-        self.max_int_delay = sps
         self.test_inject_error = test_inject_error
+
+        self.hysteresis = 0.00
         self.mu = 1.0
         self.sps = sps
         self.interpolator = Interpolator()
@@ -28,10 +28,8 @@ class GardnerTimingRecovery:
         mu_debug = []
         d = 1
 
+        e = 0.0
         skip_next = False
-
-        eee = [0.0] * 64
-
         for sample in xlist:
             i_sample = self.interpolator.filter(sample, self.mu)
             self.out_int.append(i_sample)
@@ -40,35 +38,42 @@ class GardnerTimingRecovery:
             if self.sps_counter >= self.sps:
                 self.sps_counter = 0
                 if skip_next:
+                    #
                     skip_next = False
                 else:
                     e = (self.out_int[-1 - d] - self.out_int[-self.sps - d]) * self.out_int[-self.sps // 2 - d]
-
-                    eee = [e] + eee[:-1]
-                    # e = sum(eee) / len(eee)
                     if self.test_inject_error is not None:
                         self.mu = self.mu + self.test_inject_error
                     else:
                         self.mu = self.mu + e / 4
 
-                if self.mu < 0.0:
+                if self.mu < 0.0 - self.hysteresis:
+                    if d == 0:
+                        ret.append(self.out_int[-4])
+                    else:
+                        ret.append(self.out_int[-d])
                     skip_next = True
-                    self.mu = -self.mu
-                    d = (d - 1) % self.max_int_delay
-                    print('d:', d, ' mu: ', self.mu)
-                if self.mu > 1.0:
+                    # self.mu = self.mu + 1.0
+                    self.mu = 1.0
+                    d = (d - 1) % self.sps
+                    print('<d:', d, ' mu: ', self.mu)
+                elif self.mu > 1.0 + self.hysteresis:
+                    ret.append(self.out_int[-d])
                     skip_next = True
-                    self.mu = self.mu - 1.0
-                    d = (d + 1) % self.max_int_delay
-                    print('d:', d, ' mu: ', self.mu)
+                    # self.mu = self.mu - 1.0
+                    self.mu = 0.0
+                    d = (d + 1) % self.sps
+                    print('>d:', d, ' mu: ', self.mu)
+
+                else:
+                    # no idea why this is needed...kind of scary
+                    no = -1 - d + 1
+                    if no == 0:
+                        no = -4
+                    ret.append(self.out_int[no])
+
                 mu_debug.append(d+self.mu)
                 err_debug.append(e)
-
-                # no idea why this is needed...
-                no = -1 - d+1
-                if no == 0:
-                    no = -4
-                ret.append(self.out_int[no])
 
         return ret, err_debug, mu_debug
 
