@@ -71,7 +71,7 @@ class TestGardnerTimingRecovery:
         # bug 3->4
         sps = 2
         inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, sps, 0, fd=0.0)
-        recover = GardnerTimingRecovery(sps)
+        recover = GardnerTimingRecovery(sps, test_inject_error=0.05)
 
         ret, err, mu = recover.model_main(inp)
         plt.plot(err)
