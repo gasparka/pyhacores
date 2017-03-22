@@ -32,12 +32,13 @@ class GardnerTimingRecovery:
         ll = 0
         f = interp1d(range(len(xlist)), xlist)
 
-        dd = [0.0] * 1
+        dd = [0.0] * 2
         f = False
         cnt = 0
+        last_err = 0.0
         for sample in xlist:
             ii += 1
-            i_sample = self.interpolator.filter(sample, dd[-1])
+            i_sample = self.interpolator.filter(sample, self.d % 1)
 
 
             # new = f(ii+ (self.d % 1))
@@ -60,31 +61,45 @@ class GardnerTimingRecovery:
                 ll += 1
                 self.sps_counter = 0
 
-                intd = int(floor(self.d))
+                # intd = int(floor(self.d))
 
-                if lastd != int(floor(self.d)) or f:
-                    f = True
-                    cnt += 1
-                    if cnt > 2:
-                        cnt = 0
-                        f = False
-                    lastd = int(floor(self.d))
-                    e = err_debug[-1]
+                intd = int(floor(dd[-1]))
 
-                    # c = self.out_int[-1-intd + 1]
-                    # p = self.out_int[-self.sps-intd + 1]
-                    # m = self.out_int[-self.sps // 2-intd + 1]
-                    # print(f'{c:.2f} {m:.2f} {p:.2f}')
-                    # e = (c - p) * m
-                else:
-                    c = self.out_int[-1-intd]
-                    p = self.out_int[-self.sps-intd]
-                    m = self.out_int[-self.sps // 2-intd]
-                    print(f'{c:.2f} {m:.2f} {p:.2f}')
-                    e = (c - p) * m
+                # if lastd != intd or f:
+                #     # f = True
+                #     # cnt += 1
+                #     # if cnt > 2:
+                #     #     cnt = 0
+                #     #     f = False
+                #     lastd = intd
+                #     e = last_err
+                #     self.sps_counter = -self.sps
+                # else:
+                #     c = self.out_int[-1-intd]
+                #     p = self.out_int[-self.sps-intd]
+                #     m = self.out_int[-self.sps // 2-intd]
+                #     print(f'{c:.2f} {m:.2f} {p:.2f}')
+                #     e = (c - p) * m
+                #     last_err = e
+
+                if lastd != intd:
+                    lastd = intd
+                    e = last_err
+                    self.sps_counter = -self.sps
+
+                c = self.out_int[-1-intd]
+                p = self.out_int[-self.sps-intd]
+                m = self.out_int[-self.sps // 2-intd]
+                print(f'{c:.2f} {m:.2f} {p:.2f}')
+                e = (c - p) * m
+                last_err = e
+
                 self.d += 0.05
+                dd = [self.d] + dd[:-1]
 
-                dd = [self.d % 1] + dd[:-1]
+                if lastd != intd:
+
+                # dd = [self.d % 1] + dd[:-1]
                 # self.d = self.d % (self.sps+1+3)
 
 
