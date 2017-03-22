@@ -30,6 +30,7 @@ class GardnerTimingRecovery:
 
         e = 0.0
         skip_next = False
+        state = 0
         for sample in xlist:
             i_sample = self.interpolator.filter(sample, self.mu)
             self.out_int.append(i_sample)
@@ -40,12 +41,25 @@ class GardnerTimingRecovery:
                 if skip_next:
                     #
                     skip_next = False
+                    continue
                 else:
                     e = (self.out_int[-1 - d] - self.out_int[-self.sps - d]) * self.out_int[-self.sps // 2 - d]
                     if self.test_inject_error is not None:
-                        self.mu = self.mu + self.test_inject_error
+                        if d >= 1 and self.mu > 0.1:
+                            state = 1
+
+                        if d <= 0 and self.mu < 0.9:
+                            state = 0
+
+                        if not state:
+                            self.mu = self.mu + self.test_inject_error
+                        else:
+                            self.mu = self.mu - self.test_inject_error
+
                     else:
                         self.mu = self.mu + e / 4
+
+
 
                 if self.mu < 0.0 - self.hysteresis:
                     if d == 0:
@@ -56,14 +70,19 @@ class GardnerTimingRecovery:
                     # self.mu = self.mu + 1.0
                     self.mu = 1.0
                     d = (d - 1) % self.sps
-                    print('<d:', d, ' mu: ', self.mu)
+                    print('i: ', len(ret), ' <d:', d, ' mu: ', self.mu, ' o: ', ret[-1])
                 elif self.mu > 1.0 + self.hysteresis:
-                    ret.append(self.out_int[-d])
+                    self.sps_counter -= 4
+                    if d == 0:
+                        ret.append(self.out_int[-4])
+                    else:
+                        ret.append(self.out_int[-d])
                     skip_next = True
                     # self.mu = self.mu - 1.0
                     self.mu = 0.0
                     d = (d + 1) % self.sps
-                    print('>d:', d, ' mu: ', self.mu)
+
+                    print('i: ', len(ret), ' >d:', d, ' mu: ', self.mu, ' o: ', ret[-1])
 
                 else:
                     # no idea why this is needed...kind of scary

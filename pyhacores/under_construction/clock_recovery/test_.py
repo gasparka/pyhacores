@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 from astropy.tests.helper import pytest
 from scipy.interpolate import interp1d
@@ -60,6 +62,24 @@ class TestGardnerTimingRecovery:
 
         np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
 
+    @pytest.mark.parametrize('fract_delay', np.array(range(10)) / 10)
+    @pytest.mark.parametrize('int_delay', [1, 2, 3, 4])
+    def test_error_ramps(self, fract_delay, int_delay):
+        """ How system responses to constant error ramp """
+        sps = 4
+        inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 32, sps, int_delay, fd=fract_delay)
+        recover = GardnerTimingRecovery(sps, test_inject_error=0.05)
+
+        r = recover.model_main(inp)
+        ret, err, mu = r
+        plt.plot(err)
+        plt.plot(mu)
+        plt.stem(ret)
+        plt.grid()
+        plt.show()
+
+        path = Path(__file__).parent / f'data/{sps}_{fract_delay}_{int_delay}'
+        np.save(path, np.array(r))
 
 
 def test_debug():
