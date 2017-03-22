@@ -41,20 +41,22 @@ class GardnerTimingRecovery:
                 if skip_next:
                     #
                     skip_next = False
-                    continue
+                    # continue
                 else:
                     e = (self.out_int[-1 - d] - self.out_int[-self.sps - d]) * self.out_int[-self.sps // 2 - d]
                     if self.test_inject_error is not None:
-                        if d >= 1 and self.mu > 0.1:
-                            state = 1
+                        # if d >= 1 and self.mu > 0.1:
+                        #     state = 1
+                        #
+                        # if d <= 0 and self.mu < 0.9:
+                        #     state = 0
+                        #
+                        # if not state:
+                        #     self.mu = self.mu + self.test_inject_error
+                        # else:
+                        #     self.mu = self.mu - self.test_inject_error
 
-                        if d <= 0 and self.mu < 0.9:
-                            state = 0
-
-                        if not state:
-                            self.mu = self.mu + self.test_inject_error
-                        else:
-                            self.mu = self.mu - self.test_inject_error
+                        self.mu = self.mu - self.test_inject_error
 
                     else:
                         self.mu = self.mu + e / 4
@@ -62,6 +64,7 @@ class GardnerTimingRecovery:
 
 
                 if self.mu < 0.0 - self.hysteresis:
+                    self.sps_counter -= 3
                     if d == 0:
                         ret.append(self.out_int[-4])
                     else:
@@ -72,7 +75,7 @@ class GardnerTimingRecovery:
                     d = (d - 1) % self.sps
                     print('i: ', len(ret), ' <d:', d, ' mu: ', self.mu, ' o: ', ret[-1])
                 elif self.mu > 1.0 + self.hysteresis:
-                    self.sps_counter -= 4
+                    self.sps_counter -= 3
                     if d == 0:
                         ret.append(self.out_int[-4])
                     else:
