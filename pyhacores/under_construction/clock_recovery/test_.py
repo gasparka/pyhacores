@@ -58,7 +58,7 @@ class TestGardnerTimingRecovery:
 
         ret, err, mu = recover.model_main(inp)
 
-        print(recover.d)
+        # print(recover.d)
         try:
             np.testing.assert_allclose(err[-8:], [0] * 8, atol=1e-2)
         except:
@@ -69,14 +69,15 @@ class TestGardnerTimingRecovery:
 
     def test_debug(self):
         # bug 3->4
-        sps = 2
+        sps = 4
         inp = insig([1, 0, 1, 0, 1, 0, 1, 0] * 64, sps, 0, fd=0.0)
         recover = GardnerTimingRecovery(sps, test_inject_error=0.05)
 
         ret, err, mu = recover.model_main(inp)
         plt.plot(err)
         plt.plot(mu)
-        plt.plot(np.array(mu)%1)
+        # plt.plot(np.array(mu)%1)
+        # plt.plot(np.diff(err))
         # plt.plot(recover.out_int)
         plt.grid()
         plt.show()

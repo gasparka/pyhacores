@@ -8,62 +8,126 @@ from pyhacores.under_construction.interpolator.model import Interpolator
 import matplotlib.pyplot as plt
 
 
+
 class GardnerTimingRecovery:
     def __init__(self, sps, test_inject_error=None):
         # sps must be divisible by 2 -> required by gardner
         assert sps in [2, 4, 8]
-
-        self.test_inject_error = test_inject_error
-        self.error_divide = 2
-        self.d = 3
-        self.sps = sps
-
         # From the worst case sampling point, this + fractional delay shift to optimal sampling point
         self.max_int_delay = sps
+        self.test_inject_error = test_inject_error
+        self.mu = 1.0
+        self.sps = sps
         self.interpolator = Interpolator()
-        self.out_int = [0.0] * self.sps * 4
+        self.out_int = [0.0] * sps*2
         self.sps_counter = 0
-
-        self.lim = sps
 
     def model_main(self, xlist):
         err_debug = []
-        mu_debug = []
         ret = []
+        mu_debug = []
+        d = 1
 
-        lastd = self.d
+        skip_next = False
+
+        eee = [0.0] * 64
 
         for sample in xlist:
-            i_sample = self.interpolator.filter(sample, self.d % 1)
+            i_sample = self.interpolator.filter(sample, self.mu)
             self.out_int.append(i_sample)
 
             self.sps_counter += 1
-            if self.sps_counter >= self.lim:
+            if self.sps_counter >= self.sps:
                 self.sps_counter = 0
-
-                intd = int(floor(self.d))
-
-                if lastd != intd:
-                    print('JO JO JO')
-                    # due to the interpolator delay, we have to skip error update when ever integer delay changes!
-                    lastd = intd
+                if skip_next:
+                    skip_next = False
                 else:
-                    c = self.out_int[-1 - intd]
-                    p = self.out_int[-self.sps - intd]
-                    m = self.out_int[-self.sps // 2 - intd]
-                    e = (c - p) * m
+                    e = (self.out_int[-1 - d] - self.out_int[-self.sps - d]) * self.out_int[-self.sps // 2 - d]
 
-                if self.test_inject_error is not None:
-                    self.d = (self.d + self.test_inject_error) % self.max_int_delay
-                else:
-                    self.d = (self.d - e / self.error_divide) % self.max_int_delay
+                    eee = [e] + eee[:-1]
+                    # e = sum(eee) / len(eee)
+                    if self.test_inject_error is not None:
+                        self.mu = self.mu + self.test_inject_error
+                    else:
+                        self.mu = self.mu - e / 8
 
-                mu_debug.append(self.d)
+                if self.mu < 0.0:
+                    skip_next = True
+                    self.mu = -self.mu
+                    d = (d + 1) % self.max_int_delay
+                    print('d:', d, ' mu: ', self.mu)
+                if self.mu > 1.0:
+                    skip_next = True
+                    self.mu = self.mu - 1.0
+                    d = (d - 1) % self.max_int_delay
+                    print('d:', d, ' mu: ', self.mu)
+                mu_debug.append(d+self.mu)
                 err_debug.append(e)
-                ret.append(self.out_int[-1-intd-1])
 
+                # no idea why this is needed...
+                no = -1 - d+1
+                if no == 0:
+                    no = -4
+                ret.append(self.out_int[no])
 
         return ret, err_debug, mu_debug
+
+# class GardnerTimingRecovery:
+#     def __init__(self, sps, test_inject_error=None):
+#         # sps must be divisible by 2 -> required by gardner
+#         assert sps in [2, 4, 8]
+#
+#         self.test_inject_error = test_inject_error
+#         self.error_divide = 2
+#         self.d = 3
+#         self.sps = sps
+#
+#         # From the worst case sampling point, this + fractional delay shift to optimal sampling point
+#         self.max_int_delay = sps
+#         self.interpolator = Interpolator()
+#         self.out_int = [0.0] * self.sps * 4
+#         self.sps_counter = 0
+#
+#         self.lim = sps
+#
+#     def model_main(self, xlist):
+#         err_debug = []
+#         mu_debug = []
+#         ret = []
+#
+#         lastd = self.d
+#
+#         for sample in xlist:
+#             i_sample = self.interpolator.filter(sample, self.d % 1)
+#             self.out_int.append(i_sample)
+#
+#             self.sps_counter += 1
+#             if self.sps_counter >= self.lim:
+#                 self.sps_counter = 0
+#
+#                 intd = int(floor(self.d))
+#
+#                 if lastd != intd:
+#                     print('JO JO JO')
+#                     # due to the interpolator delay, we have to skip error update when ever integer delay changes!
+#                     lastd = intd
+#                 else:
+#                     c = self.out_int[-1 - intd]
+#                     p = self.out_int[-self.sps - intd]
+#                     m = self.out_int[-self.sps // 2 - intd]
+#                     e = (c - p) * m
+#
+#                 if self.test_inject_error is not None:
+#                     self.d = (self.d + self.test_inject_error) % self.max_int_delay
+#                 else:
+#                     self.d = (self.d - e / self.error_divide) % self.max_int_delay
+#
+#                 mu_debug.append(self.d)
+#                 err_debug.append(e)
+#                 ret.append(self.out_int[-1-intd-1])
+#
+#
+#         return ret, err_debug, mu_debug
 
         # def model_main(self, xlist):
         #     err_debug = []
