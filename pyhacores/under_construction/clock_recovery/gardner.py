@@ -25,25 +25,34 @@ class GardnerTimingRecovery:
         mu = 0.0
 
         delay = [0.0] * (self.sps + 1)
+        skip_error_update = False
         for sample in xlist:
-            # sample = self.interpolator.filter(sample, mu)
+            sample = self.interpolator.filter(sample, mu)
             delay = [sample] + delay[:-1]
             if counter == self.sps:
                 counter = 0.0
                 previous = delay[self.sps]
                 middle = delay[self.sps // 2]
                 current = delay[0]
-                # print()
+                # print(f'({current:.2f} - {previous:.2f}) * {middle:.2f}')
+                if skip_error_update:
+                    skip_error_update = False
+                else:
+                    e = (current - previous) * middle
 
-                e = (current - previous) * middle
+                if self.test_inject_error is not None:
+                    mu = mu + self.test_inject_error
+                else:
+                    mu = mu + e / 4
 
-                mu = mu + e / 4
                 if mu > 1.0:
-                    print('>')
+                    skip_error_update = True
+                    # print('>')
                     mu = mu % 1
                     counter += 1
                 elif mu < 0.0:
-                    print('<')
+                    skip_error_update = True
+                    # print('<')
                     mu = mu % 1
                     counter -= 1
 
