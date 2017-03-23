@@ -140,6 +140,7 @@ taps = [
 ]
 
 
+
 class PhaseShiftingFIR(HW):
     def __init__(self):
         self.model_mem = [0] * 8
@@ -151,22 +152,48 @@ class PhaseShiftingFIR(HW):
 
         # constants
         self.taps_fix_reversed = [[Sfix(x, 0, -17) for x in reversed(row)] for row in taps]
-        self._delay = 3
+        self._delay = 0
         # self._delay = 0
+        self.shr = [Sfix(0, 0, -17)]*8
 
     def main(self, x, mu):
         filter_i = int(scalb(mu, 7))
-        print(filter_i)
+        self.next.shr = [x] + self.shr[:-1]
 
-        for i in range(len(self.taps_fix_reversed[0])):
-            self.next.mul[i] = x * self.taps_fix_reversed[filter_i][i]
-            if i == 0:
-                self.next.acc[0] = self.mul[i]
-            else:
-                self.next.acc[i] = self.acc[i - 1] + self.mul[i]
+        mul0 = x * self.taps_fix_reversed[filter_i][7]
+        mul1 = self.shr[0] * self.taps_fix_reversed[filter_i][6]
+        acc0 = mul0 + mul1
 
-        self.next.out = self.acc[-1]
-        return self.out
+        mul2 = self.shr[1] * self.taps_fix_reversed[filter_i][5]
+        mul3 = self.shr[2] * self.taps_fix_reversed[filter_i][4]
+        acc1 = mul2 + mul3
+
+        mul4 = self.shr[3] * self.taps_fix_reversed[filter_i][3]
+        mul5 = self.shr[4] * self.taps_fix_reversed[filter_i][2]
+        acc2 = mul4 + mul5
+
+        mul6 = self.shr[5] * self.taps_fix_reversed[filter_i][1]
+        mul7 = self.shr[6] * self.taps_fix_reversed[filter_i][0]
+        acc3 = mul6 + mul7
+
+
+        acc20 = acc0 + acc1
+        acc21 = acc2 + acc3
+
+        out = acc20 + acc21
+
+        return out
+
+
+        # for i in range(len(self.taps_fix_reversed[0])):
+        #     self.next.mul[i] = x * self.taps_fix_reversed[filter_i][i]
+        #     if i == 0:
+        #         self.next.acc[0] = self.mul[i]
+        #     else:
+        #         self.next.acc[i] = self.acc[i - 1] + self.mul[i]
+        #
+        # self.next.out = self.acc[-1]
+        # return self.out
 
         # for i in range(len(self.taps_fix_reversed[0])):
         #     self.next.mul[i] = x * self.taps_fix_reversed[filter_i][i]
@@ -184,12 +211,35 @@ class PhaseShiftingFIR(HW):
         out = []
         for x, mu in zip(xlist, mulist):
             filter_i = int(np.floor(mu * 128))
-            print(filter_i)
             # self.model_mem = [x] + self.model_mem[:-1]
+            m = sum([abs(x) for x in taps[filter_i]])
+            taps[filter_i] = [x / m for x in taps[filter_i]]
             self.model_mem = self.model_mem[1:] + [x]
             ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.model_mem)]
             out.append(sum(ff))
         return out
+
+    # def model_main(self, xlist, mulist):
+    #     # filter_i = int(np.floor(mulist[0] * 128))
+    #     # return signal.lfilter(taps[filter_i], [1.0], xlist)
+    #     out = []
+    #     for x, mu in zip(xlist, mulist):
+    #         filter_i = int(np.floor(mu * 128))
+    #         mul = [0.0] * 8
+    #         for i in range(8):
+    #             mul[i] = x * taps[filter_i][7-i]
+    #
+    #         self.model_mem[7] = self.model_mem[6] + mul[7]
+    #         self.model_mem[6] = self.model_mem[5] + mul[6]
+    #         self.model_mem[5] = self.model_mem[4] + mul[5]
+    #         self.model_mem[4] = self.model_mem[3] + mul[4]
+    #         self.model_mem[3] = self.model_mem[2] + mul[3]
+    #         self.model_mem[2] = self.model_mem[1] + mul[2]
+    #         self.model_mem[1] = self.model_mem[0] + mul[1]
+    #         self.model_mem[0] = mul[0]
+    #
+    #         out.append(self.model_mem[7])
+    #     return out
 
 
 def rescale_taps(taps):

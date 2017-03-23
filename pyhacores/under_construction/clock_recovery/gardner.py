@@ -2,19 +2,67 @@ from math import floor
 import numpy as np
 
 import pytest
+from pyha.common.hwsim import HW
+from pyha.common.sfix import Sfix
 from scipy.interpolate import interp1d
 
 from pyhacores.under_construction.interpolator.model import Interpolator
 import matplotlib.pyplot as plt
 
 
-class GardnerTimingRecovery:
+class GardnerTimingRecovery(HW):
     def __init__(self, sps, test_inject_error=None):
         # sps must be divisible by 2 -> required by gardner
         assert not (sps & 1)
         self.test_inject_error = test_inject_error
         self.sps = sps
         self.interpolator = Interpolator()
+
+
+        self.counter = 0
+        self.mu = 0.0
+        self.skip_error_update = False
+        self.e = 0.0
+
+        self.sample_shr = [0.0] * (self.sps + 1)
+
+
+    def main(self, sample):
+        sample = float(sample)
+
+        # sample = self.interpolator.filter(sample, mu)
+        self.next.sample_shr = [sample] + self.sample_shr[:-1]
+        if self.counter == self.sps:
+            self.next.counter = 1
+            previous = self.sample_shr[self.sps]
+            middle = self.sample_shr[self.sps // 2]
+            current = self.sample_shr[0]
+            # print(f'({current:.2f} - {previous:.2f}) * {middle:.2f}')
+
+            if self.skip_error_update:
+                self.next.skip_error_update = False
+            else:
+                self.next.e = (current - previous) * middle
+
+            if self.test_inject_error is not None:
+                self.next.mu = self.mu + self.test_inject_error
+            else:
+                self.next.mu = self.mu + self.e / 4
+
+            if self.mu > 1.0:
+                self.next.skip_error_update = True
+                print('>')
+                self.next.mu = self.mu % 1
+                self.next.counter = 1
+            elif self.mu  < 0.0:
+                self.next.skip_error_update = True
+                print('<')
+                self.next.mu = self.mu % 1
+                self.next.counter = -1
+        else:
+            self.next.counter = self.counter + 1
+
+        return self.sample_shr[0], self.e, self.mu
 
     def model_main(self, xlist):
         err_debug = []
@@ -25,8 +73,11 @@ class GardnerTimingRecovery:
         mu = 0.0
 
         delay = [0.0] * (self.sps + 1)
-        hw_delay = [0.0] * 8
+        hw_delay = [0.0] * 4
         skip_error_update = False
+        cdelay = [0] * 5
+
+        mu_delay = [0.0] * 2
         for sample in xlist:
             sample = self.interpolator.filter(sample, mu)
             hw_delay = [sample] + hw_delay[:-1]
@@ -37,6 +88,9 @@ class GardnerTimingRecovery:
                 middle = delay[self.sps // 2]
                 current = delay[0]
                 # print(f'({current:.2f} - {previous:.2f}) * {middle:.2f}')
+
+
+
                 if skip_error_update:
                     skip_error_update = False
                 else:
@@ -47,16 +101,21 @@ class GardnerTimingRecovery:
                 else:
                     mu = mu + e / 4
 
+                counter += cdelay[-1]
                 if mu > 1.0:
-                    skip_error_update = True
-                    # print('>')
-                    mu = mu % 1
-                    counter += 1
+                    # skip_error_update = True
+                    print('>')
+                    mu = 1.0
+                    # mu = mu % 1
+                    # counter += cdelay[]
+                    cdelay = [1] + cdelay[:-1]
                 elif mu < 0.0:
                     skip_error_update = True
-                    # print('<')
+                    print('<')
                     mu = mu % 1
                     counter -= 1
+                else:
+                    cdelay = [0] + cdelay[:-1]
 
                 mu_debug.append(mu)
                 err_debug.append(e)
