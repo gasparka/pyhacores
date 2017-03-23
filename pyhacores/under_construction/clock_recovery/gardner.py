@@ -25,10 +25,12 @@ class GardnerTimingRecovery:
         mu = 0.0
 
         delay = [0.0] * (self.sps + 1)
+        hw_delay = [0.0] * 8
         skip_error_update = False
         for sample in xlist:
             sample = self.interpolator.filter(sample, mu)
-            delay = [sample] + delay[:-1]
+            hw_delay = [sample] + hw_delay[:-1]
+            delay = [hw_delay[-1]] + delay[:-1]
             if counter == self.sps:
                 counter = 0.0
                 previous = delay[self.sps]
