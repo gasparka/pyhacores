@@ -73,55 +73,58 @@ class GardnerTimingRecovery(HW):
         mu = 0.0
 
         delay = [0.0] * (self.sps + 1)
-        hw_delay = [0.0] * 4
+        hw_delay = [0.0] * 100
         skip_error_update = False
-        cdelay = [0] * 5
+        cdelay = [0] * 4
 
-        mu_delay = [0.0] * 2
+        sample_now = False
         for sample in xlist:
-            sample = self.interpolator.filter(sample, mu)
-            hw_delay = [sample] + hw_delay[:-1]
-            delay = [hw_delay[-1]] + delay[:-1]
-            if counter == self.sps:
-                counter = 0.0
-                previous = delay[self.sps]
-                middle = delay[self.sps // 2]
-                current = delay[0]
-                # print(f'({current:.2f} - {previous:.2f}) * {middle:.2f}')
-
-
-
-                if skip_error_update:
-                    skip_error_update = False
-                else:
-                    e = (current - previous) * middle
-
-                if self.test_inject_error is not None:
-                    mu = mu + self.test_inject_error
-                else:
-                    mu = mu + e / 4
-
-                counter += cdelay[-1]
-                if mu > 1.0:
-                    # skip_error_update = True
-                    print('>')
-                    mu = 1.0
-                    # mu = mu % 1
-                    # counter += cdelay[]
-                    cdelay = [1] + cdelay[:-1]
-                elif mu < 0.0:
-                    skip_error_update = True
-                    print('<')
-                    mu = mu % 1
-                    counter -= 1
-                else:
-                    cdelay = [0] + cdelay[:-1]
-
-                mu_debug.append(mu)
-                err_debug.append(e)
-                ret.append(current)
-
             counter += 1
+            if counter == self.sps//2:
+
+                # sample = self.interpolator.filter(sample, mu)
+                # hw_delay = [sample] + hw_delay[:-1]
+                # delay = [hw_delay[-1]] + delay[:-1]
+                delay = [sample] + delay[:-1]
+
+                sample_now ^= 1
+                counter = 0
+                # counter += cdelay[-1]
+                cdelay = [0] + cdelay[:-1]
+                if sample_now:
+                    previous = delay[2]
+                    middle = delay[1]
+                    current = delay[0]
+                    # print(f'({current:.2f} - {previous:.2f}) * {middle:.2f}')
+
+                    if skip_error_update:
+                        skip_error_update = False
+                    else:
+                        e = (current - previous) * middle
+
+                    if self.test_inject_error is not None:
+                        mu = mu + self.test_inject_error
+                    else:
+                        mu = mu + e / 4
+
+                    if mu > 1.0:
+                        # skip_error_update = True
+                        print('>')
+                        # mu = 1.0
+                        mu = mu % 1
+                        counter += 1
+                        cdelay[0] = 1
+                        # sample_now ^= 1
+                    elif mu < 0.0:
+                        skip_error_update = True
+                        print('<')
+                        mu = mu % 1
+                        counter -= 1
+
+                    mu_debug.append(mu)
+                    err_debug.append(e)
+                    ret.append(current)
+
 
         return ret, err_debug, mu_debug
 
