@@ -1,6 +1,6 @@
 from pyha.common.const import Const
 from pyha.common.hwsim import HW
-from pyha.common.sfix import Sfix, fixed_truncate, fixed_wrap
+from pyha.common.sfix import Sfix, fixed_truncate, fixed_wrap, scalb
 
 from scipy import signal
 import numpy as np
@@ -140,16 +140,56 @@ taps = [
 ]
 
 
-class Interpolator:
+class PhaseShiftingFIR(HW):
     def __init__(self):
-        self.internals = [0] * 8
+        self.model_mem = [0] * 8
 
-    def filter(self, x, mu):
-        filter_i = int(np.round(mu * 128))
-        self.internals = [x] + self.internals[:-1]
-        ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.internals)]
-        return sum(ff)
+        # registers
+        self.acc = [Sfix(left=1, round_style=fixed_truncate, overflow_style=fixed_wrap)] * 8
+        self.mul = [Sfix(round_style=fixed_truncate, overflow_style=fixed_wrap)] * 8
+        self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
+        # constants
+        self.taps_fix_reversed = [[Sfix(x, 0, -17) for x in reversed(row)] for row in taps]
+        self._delay = 3
+        # self._delay = 0
+
+    def main(self, x, mu):
+        filter_i = int(scalb(mu, 7))
+        print(filter_i)
+
+        for i in range(len(self.taps_fix_reversed[0])):
+            self.next.mul[i] = x * self.taps_fix_reversed[filter_i][i]
+            if i == 0:
+                self.next.acc[0] = self.mul[i]
+            else:
+                self.next.acc[i] = self.acc[i - 1] + self.mul[i]
+
+        self.next.out = self.acc[-1]
+        return self.out
+
+        # for i in range(len(self.taps_fix_reversed[0])):
+        #     self.next.mul[i] = x * self.taps_fix_reversed[filter_i][i]
+        #     if i == 0:
+        #         self.next.acc[0] = self.next.mul[i]
+        #     else:
+        #         self.next.acc[i] = self.next.acc[i - 1] + self.next.mul[i]
+        #
+        # self.next.out = self.next.acc[-1]
+        # return self.next.out
+
+    def model_main(self, xlist, mulist):
+        # filter_i = int(np.floor(mulist[0] * 128))
+        # return signal.lfilter(taps[filter_i], [1.0], xlist)
+        out = []
+        for x, mu in zip(xlist, mulist):
+            filter_i = int(np.floor(mu * 128))
+            print(filter_i)
+            # self.model_mem = [x] + self.model_mem[:-1]
+            self.model_mem = self.model_mem[1:] + [x]
+            ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.model_mem)]
+            out.append(sum(ff))
+        return out
 
 
 def rescale_taps(taps):
