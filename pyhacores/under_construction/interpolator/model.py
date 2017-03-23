@@ -143,9 +143,28 @@ taps = [
 class Interpolator:
     def __init__(self):
         self.internals = [0] * 8
+        self.model_mem = [0] * 8
 
     def filter(self, x, mu):
         filter_i = int(np.round(mu * 128))
+
+        # filter_i = int(np.floor(mu * 128))
+        # mul = [0.0] * 8
+        # for i in range(8):
+        #     mul[i] = x * taps[filter_i][i]
+        #
+        # self.model_mem[7] = self.model_mem[6] + mul[7]
+        # self.model_mem[6] = self.model_mem[5] + mul[6]
+        # self.model_mem[5] = self.model_mem[4] + mul[5]
+        # self.model_mem[4] = self.model_mem[3] + mul[4]
+        # self.model_mem[3] = self.model_mem[2] + mul[3]
+        # self.model_mem[2] = self.model_mem[1] + mul[2]
+        # self.model_mem[1] = self.model_mem[0] + mul[1]
+        # self.model_mem[0] = mul[0]
+        #
+        # return self.model_mem[7]
+
+
         self.internals = [x] + self.internals[:-1]
         ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.internals)]
         return sum(ff)
