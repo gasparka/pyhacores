@@ -45,7 +45,7 @@ def data_gen(hex, sps, int_delay=0, fract_delay=0.0, noise_amp=0.001):
     sig = sig[int_delay:]
     f = interp1d(range(len(sig)), sig)
     new_x = np.array(range(len(sig))) + fract_delay
-    # sig = f(new_x[:-1])
+    sig = f(new_x[:-1])
 
 
     return sig
