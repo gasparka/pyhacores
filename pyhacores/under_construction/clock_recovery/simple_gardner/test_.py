@@ -14,19 +14,19 @@ rcParams['figure.figsize'] = 50, 10
 
 class TestSimpleGardnerTimingRecovery:
 
-    @pytest.mark.parametrize('sps', [4, 8, 16])
+    @pytest.mark.parametrize('sps', [8, 10, 12, 14, 16])
     @pytest.mark.parametrize('int_delay, fract_delay, noise_amp', [
         [0, 0, 0.1],
-        [1, 0.245, 0.2],
-        [2, 0.945, 0.3],
+        [1, 0.245, 0.15],
+        [2, 0.945, 0.15],
         [3, 0.5, 0.05],
         [9, 0.888, 0.1],
-        [5, 0.34, 0.25],
+        [5, 0.34, 0.15],
     ])
     def test_data(self, sps, int_delay, fract_delay, noise_amp):
         self.sps = sps
         packet = '123456789abcdef'
-        insig = data_gen(f'aaaaaa{packet}aa', self.sps, int_delay, fract_delay, noise_amp)
+        insig = data_gen(f'aaaaaaaa{packet}aa', self.sps, int_delay, fract_delay, noise_amp)
         dut = SimpleGardnerTimingRecovery(self.sps)
 
         r = debug_assert_sim_match(dut, None, insig, simulations=[SIM_MODEL, SIM_HW_MODEL],
