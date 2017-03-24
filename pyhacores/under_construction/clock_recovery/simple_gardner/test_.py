@@ -40,10 +40,10 @@ class TestSimpleGardnerTimingRecovery:
 
 
 def test_hw_model():
-    sps = 16
+    sps = 8
     packet = '123456789abcdef'
-    insig = data_gen(f'aaaaaa{packet}aa', 16, 0, 0, 0)
-    dut = SimpleGardnerTimingRecovery(16)
+    insig = data_gen(f'aaaaaa{packet}aa', sps, 1, 0.3, 0)
+    dut = SimpleGardnerTimingRecovery(sps)
 
     r = debug_assert_sim_match(dut, None, insig, simulations=[SIM_MODEL, SIM_HW_MODEL])
 
