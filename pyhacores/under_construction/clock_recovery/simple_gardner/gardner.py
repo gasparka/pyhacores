@@ -12,6 +12,7 @@ class SimpleGardnerTimingRecovery(HW):
         self.e = 0
         self.mu = 0
         self.sample_shr = [0.0] * self.sps
+        # self._delay = 1
 
     def main(self, sample):
         sample = float(sample)
@@ -19,15 +20,15 @@ class SimpleGardnerTimingRecovery(HW):
         valid = False
         self.next.sample_shr = [sample] + self.sample_shr[:-1]
         self.next.counter = self.counter + 1
-        if self.counter == self.sps-1: # -1 because hardware delay already counts for 1 tick
+        if self.counter == self.sps - 1:  # -1 because hardware delay already counts for 1 tick
             valid = True
             self.next.counter = 0
-            previous = self.sample_shr[self.sps-1]
-            middle = self.sample_shr[self.sps // 2 -1]
+            previous = self.sample_shr[self.sps - 1]
+            middle = self.sample_shr[self.sps // 2 - 1]
             current = sample
 
             self.next.e = (current - previous) * middle
-            self.next.mu = self.next.mu + self.next.e
+            self.next.mu = self.mu + self.e
 
             if self.next.mu > 1.0:
                 self.next.mu = 0.0
@@ -36,35 +37,7 @@ class SimpleGardnerTimingRecovery(HW):
                 self.next.mu = 1.0
                 self.next.counter = -1
 
-
-        return sample, self.next.e, self.next.mu, valid
-
-    # def main(self, sample):
-    #     sample = float(sample)
-    #
-    #     valid = False
-    #     self.next.sample_shr = [sample] + self.sample_shr[:-1]
-    #     self.next.counter = self.counter + 1
-    #     if self.counter == self.sps:
-    #         valid = True
-    #         self.next.counter = 0
-    #         previous = self.sample_shr[self.sps]
-    #         middle = self.sample_shr[self.sps // 2]
-    #         current = self.sample_shr[0]
-    #
-    #         self.next.e = (current - previous) * middle
-    #         self.next.mu = self.mu + self.e
-    #
-    #         if self.mu > 1.0:
-    #             self.next.mu = 0.0
-    #             self.next.counter = 1
-    #         elif self.mu < 0.0:
-    #             self.next.mu = 1.0
-    #             self.next.counter = -1
-    #
-    #
-    #     return self.sample_shr[0], self.e, self.mu, valid
-
+        return sample, self.e, self.mu, valid
 
     def model_main(self, xlist):
         err_debug = []
@@ -73,6 +46,8 @@ class SimpleGardnerTimingRecovery(HW):
 
         counter = 0
         mu = 0.0
+
+        _de = [0.0] * 2
 
         delay = [0.0] * (self.sps + 1)
         for i, sample in enumerate(xlist):
@@ -86,6 +61,9 @@ class SimpleGardnerTimingRecovery(HW):
                 current = sample
 
                 e = (current - previous) * middle
+                # _de = [e] + _de[:-1]
+                # e = _de[-1]
+
                 mu = mu + e
 
                 if mu > 1.0:
@@ -98,6 +76,5 @@ class SimpleGardnerTimingRecovery(HW):
                 mu_debug.append(mu)
                 err_debug.append(e)
                 ret.append(current)
-
 
         return ret, err_debug, mu_debug
