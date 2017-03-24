@@ -11,7 +11,7 @@ class SimpleGardnerTimingRecovery(HW):
         self.counter = 0
         self.e = 0
         self.mu = 0
-        self.sample_shr = [0.0] * (self.sps+1)
+        self.sample_shr = [0.0] * self.sps
 
     def main(self, sample):
         sample = float(sample)
@@ -22,9 +22,9 @@ class SimpleGardnerTimingRecovery(HW):
         if self.counter == self.sps-1: # -1 because hardware delay already counts for 1 tick
             valid = True
             self.next.counter = 0
-            previous = self.next.sample_shr[self.sps]
-            middle = self.next.sample_shr[self.sps // 2]
-            current = self.next.sample_shr[0]
+            previous = self.sample_shr[self.sps-1]
+            middle = self.sample_shr[self.sps // 2 -1]
+            current = sample
 
             self.next.e = (current - previous) * middle
             self.next.mu = self.next.mu + self.next.e
@@ -37,7 +37,7 @@ class SimpleGardnerTimingRecovery(HW):
                 self.next.counter = -1
 
 
-        return self.next.sample_shr[0], self.next.e, self.next.mu, valid
+        return sample, self.next.e, self.next.mu, valid
 
     # def main(self, sample):
     #     sample = float(sample)
@@ -75,7 +75,7 @@ class SimpleGardnerTimingRecovery(HW):
         mu = 0.0
 
         delay = [0.0] * (self.sps + 1)
-        for sample in xlist:
+        for i, sample in enumerate(xlist):
 
             delay = [sample] + delay[:-1]
             counter += 1
@@ -83,7 +83,7 @@ class SimpleGardnerTimingRecovery(HW):
                 counter = 0
                 previous = delay[self.sps]
                 middle = delay[self.sps // 2]
-                current = delay[0]
+                current = sample
 
                 e = (current - previous) * middle
                 mu = mu + e
