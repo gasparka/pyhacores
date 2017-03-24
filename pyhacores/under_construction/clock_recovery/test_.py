@@ -37,6 +37,7 @@ def data_gen(hex, sps, int_delay=0, fract_delay=0.0, noise_amp=0.001):
     # matched filter
     taps = [1 / sps] * sps
     matched = np.convolve(nrz, taps, mode='full')
+    matched *= 0.5
 
     # noise
     sig = matched + np.random.uniform(-noise_amp, noise_amp, len(matched))
