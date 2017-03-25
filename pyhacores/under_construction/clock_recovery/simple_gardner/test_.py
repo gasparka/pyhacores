@@ -42,24 +42,24 @@ class TestSimpleGardnerTimingRecovery:
         bits_model = bools_to_bitstr([1 if x > 0 else 0 for x in r[0][0]])
         bits_hwmodel = bools_to_bitstr([1 if x > 0 else 0 for x in rt[0]])
 
-        try:
-            assert packet_bits in bits_model
-            assert packet_bits in bits_hwmodel
-        except:
-
-            plt.subplot(1, 3, 1)
-            plt.plot(rt[0])
-            plt.plot(r[0][0])
-
-            plt.subplot(1, 3, 2)
-            plt.plot(rt[1])
-            plt.plot(r[0][1])
-
-            plt.subplot(1, 3, 3)
-            plt.plot(rt[2])
-            plt.plot(r[0][2])
-
-            plt.show()
+        # try:
+        assert packet_bits in bits_model
+        assert packet_bits in bits_hwmodel
+        # except:
+        #
+        #     plt.subplot(1, 3, 1)
+        #     plt.plot(rt[0])
+        #     plt.plot(r[0][0])
+        #
+        #     plt.subplot(1, 3, 2)
+        #     plt.plot(rt[1])
+        #     plt.plot(r[0][1])
+        #
+        #     plt.subplot(1, 3, 3)
+        #     plt.plot(rt[2])
+        #     plt.plot(r[0][2])
+        #
+        #     plt.show()
 
 
 
