@@ -9,8 +9,21 @@ from scipy.interpolate import interp1d
 from pyhacores.under_construction.interpolator.model import Interpolator
 import matplotlib.pyplot as plt
 
-
+# NEED POLYPHASE FILTER TO REPLACE INTEGER PART CONTROL!!
 class GardnerTimingRecovery(HW):
+    """
+
+    About alternative implementation:
+    Sampler could be moved before FIR intepolator, then filter delay would not matter.
+    Still changing the integer sample will produce 1 symbol of incorrect output. Because FIR has mixed samples?
+    One way to get around this is to use 3 FIRs in parallel, running in -1 0 +1 delay samples.
+    Then algorithm would switch between these filters.
+
+    About decimate first, then interpolate:
+    Basically then sampler is before interpolator -> problems on sampling point change.
+    Also then interpolator can shift (0 -> SPS/2) instead of 0 -> 1. Sampling point should be changed +-SPS/2 on interpoaltor overflow.
+
+    """
     def __init__(self, sps, test_inject_error=None):
         # sps must be divisible by 2 -> required by gardner
         assert not (sps & 1)
@@ -64,7 +77,72 @@ class GardnerTimingRecovery(HW):
 
         return self.sample_shr[0], self.e, self.mu
 
+
+
     def model_main(self, xlist):
+        err_debug = []
+        ret = []
+        mu_debug = []
+
+        counter = 0
+        mu = 0.0
+
+        tune_sampler = [0.0] * self.sps
+        average = [0.0] * 4
+        delay = [0.0] * (self.sps + 1)
+        skip_error_update = False
+
+        # THIS DELAY must be smaller than sps...
+        hw_delay = [0.0] * 3
+        for i, sample in enumerate(xlist):
+            tune_sampler = [sample] + tune_sampler[:-1]
+            sample_select = tune_sampler[int(mu)]
+
+            sample = self.interpolator.filter(sample, mu%1)
+
+            hw_delay = [sample] + hw_delay[:-1]
+            delay = [hw_delay[-1]] + delay[:-1]
+            # delay = [sample] + delay[:-1]
+            counter += 1
+            if counter == self.sps:
+                counter = 0
+                previous = delay[self.sps]
+                middle = delay[self.sps // 2]
+                current = delay[0]
+
+                if skip_error_update:
+                    skip_error_update = False
+                    e = 0
+                else:
+                    e = (current - previous) * middle
+                    # average = [e] + average[:-1]
+                    # e = sum(average) / len(average)
+
+                lastmu = mu
+                # mu = (mu + 0.05)
+                mu = (mu + e/2)
+
+                # if int(lastmu) != int(mu):
+                #     counter = -1
+                if mu > 1.0:
+                    skip_error_update = True
+                    # mu = mu % self.sps
+                    mu = mu%1
+                    # mu = 0.1
+                    counter = 1
+                elif mu < 0.0:
+                    skip_error_update = True
+                    mu = mu % 1
+                    # mu = 0.9
+                    # mu = 1.0
+                    counter = -1
+
+                mu_debug.append(mu)
+                err_debug.append(e)
+                ret.append(current)
+        return ret, err_debug, mu_debug
+
+    def model_main2(self, xlist):
         err_debug = []
         ret = []
         mu_debug = []
@@ -82,7 +160,7 @@ class GardnerTimingRecovery(HW):
             counter += 1
             if counter == self.sps//2:
 
-                # sample = self.interpolator.filter(sample, mu)
+                sample = self.interpolator.filter(sample, mu)
                 # hw_delay = [sample] + hw_delay[:-1]
                 # delay = [hw_delay[-1]] + delay[:-1]
                 delay = [sample] + delay[:-1]
@@ -111,14 +189,12 @@ class GardnerTimingRecovery(HW):
                         # skip_error_update = True
                         print('>')
                         # mu = 1.0
-                        mu = mu % 1
+                        mu = 0.9
                         counter += 1
-                        cdelay[0] = 1
-                        # sample_now ^= 1
                     elif mu < 0.0:
                         skip_error_update = True
                         print('<')
-                        mu = mu % 1
+                        mu = 0.1
                         counter -= 1
 
                     mu_debug.append(mu)
