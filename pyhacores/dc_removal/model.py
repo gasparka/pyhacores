@@ -8,7 +8,6 @@ class DCRemoval(HW):
     Based on: https://www.dsprelated.com/showarticle/58.php
     """
     def __init__(self, window_len):
-        self.window_len = window_len
         self.group_delay = int((window_len-1)/2*2)
         self.mavg = [MovingAverage(window_len) for _ in range(2)]
         self.delay = [Sfix()] * (self.group_delay + 2)
