@@ -9,11 +9,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pylab import rcParams
+
 rcParams['figure.figsize'] = 50, 10
 
 
 class TestSimpleGardnerTimingRecovery:
-
     @pytest.mark.parametrize('sps', [8, 10, 12, 14, 16])
     @pytest.mark.parametrize('int_delay, fract_delay, noise_amp', [
         [0, 0, 0.1],
@@ -31,7 +31,6 @@ class TestSimpleGardnerTimingRecovery:
 
         r = debug_assert_sim_match(dut, None, insig, simulations=[SIM_MODEL, SIM_HW_MODEL],
                                    types=[Sfix(0, 1, -32)])
-
 
         rt = np.transpose([x for x in np.transpose(r[1]) if x[3]])
 
@@ -56,7 +55,6 @@ class TestSimpleGardnerTimingRecovery:
         assert packet_bits in bits_hwmodel
 
 
-
 def test_hw_model():
     sps = 8
     packet = '123456789abcdef'
@@ -64,14 +62,14 @@ def test_hw_model():
     dut = SimpleGardnerTimingRecovery(sps)
 
     r = debug_assert_sim_match(dut, None, insig, simulations=[SIM_MODEL, SIM_HW_MODEL],
-                               types=[Sfix(0,1,-32)])
+                               types=[Sfix(0, 1, -32)])
 
     rt = np.transpose(r[1])
 
     rt = np.transpose([x for x in rt if x[3]])
     from pylab import rcParams
     rcParams['figure.figsize'] = 50, 10
-    plt.subplot(1,3,1)
+    plt.subplot(1, 3, 1)
     plt.plot(rt[0])
     plt.plot(r[0][0])
 
