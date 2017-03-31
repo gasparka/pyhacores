@@ -165,8 +165,8 @@ class Interpolator:
         # return self.model_mem[7]
 
 
-        # self.internals = [x] + self.internals[:-1]
-        self.model_mem = self.model_mem[1:] + [x]
+        self.model_mem = [x] + self.model_mem[:-1]
+        # self.model_mem = self.model_mem[1:] + [x]
         ff = [coef * tap for coef, tap in zip(reversed(taps[filter_i]), self.model_mem)]
         return sum(ff)
 
