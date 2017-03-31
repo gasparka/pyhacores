@@ -1,22 +1,28 @@
 from pyha.common.hwsim import HW
+from pyha.common.sfix import Sfix, fixed_truncate, fixed_wrap
+
+from pyhacores.moving_average.model import MovingAverage
 
 
 class SimpleGardnerTimingRecovery(HW):
-    def __init__(self, sps, test_inject_error=None):
+    def __init__(self, sps):
         # sps must be divisible by 2 -> required by gardner
         assert not (sps & 1)
-        self.test_inject_error = test_inject_error
+        # assert sps >= 8 #
         self.sps = sps
 
         self.counter = 0
-        self.e = 0
-        self.mu = 0
-        self.sample_shr = [0.0] * self.sps
-        # self._delay = 1
+        self.middle_delay = Sfix()
+        self.e = Sfix(0.0, 0, -17, round_style=fixed_truncate, overflow_style=fixed_wrap)
+        self.cp_diff = Sfix(0.0, 0, -17, round_style=fixed_truncate)
+        self.mu = Sfix(0.0, 1, -17, round_style=fixed_truncate, overflow_style=fixed_wrap)
+        self.sample_shr = [Sfix()] * self.sps
+
+        self.avg = MovingAverage(4)
+        # self._delay = 8
 
     def main(self, sample):
-        sample = float(sample)
-
+        avg = Sfix(0.0, 0, -17)
         valid = False
         self.next.sample_shr = [sample] + self.sample_shr[:-1]
         self.next.counter = self.counter + 1
@@ -27,8 +33,14 @@ class SimpleGardnerTimingRecovery(HW):
             middle = self.sample_shr[self.sps // 2 - 1]
             current = sample
 
-            self.next.e = (current - previous) * middle
-            self.next.mu = self.mu + self.e
+            # pipelined:
+            # e = (current - previous) * middle
+            # mu = mu + e
+            self.next.middle_delay = middle
+            self.next.cp_diff = current - previous
+            self.next.e = self.cp_diff * self.middle_delay
+            avg = self.avg.main(self.e)
+            self.next.mu = self.mu + avg
 
             if self.next.mu > 1.0:
                 self.next.mu = 0.0
@@ -37,7 +49,7 @@ class SimpleGardnerTimingRecovery(HW):
                 self.next.mu = 1.0
                 self.next.counter = -1
 
-        return sample, self.e, self.mu, valid
+        return sample, avg, self.mu, valid
 
     def model_main(self, xlist):
         err_debug = []
@@ -47,8 +59,7 @@ class SimpleGardnerTimingRecovery(HW):
         counter = 0
         mu = 0.0
 
-        _de = [0.0] * 2
-
+        average = [0.0] * 4
         delay = [0.0] * (self.sps + 1)
         for i, sample in enumerate(xlist):
 
@@ -61,8 +72,8 @@ class SimpleGardnerTimingRecovery(HW):
                 current = sample
 
                 e = (current - previous) * middle
-                # _de = [e] + _de[:-1]
-                # e = _de[-1]
+                average = [e] + average[:-1]
+                e = sum(average) / len(average)
 
                 mu = mu + e
 
