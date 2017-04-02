@@ -35,6 +35,7 @@ class MovingAverage(HW):
 
         # module delay
         self._delay = 2
+        self._group_delay = (window_len-1)/2
 
     def main(self, x):
         """
