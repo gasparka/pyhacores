@@ -14,13 +14,13 @@ class TestMovingAverage:
         mov = MovingAverage(window_len=2)
         x = [0.0, 0.1, 0.2, 0.3, 0.4]
         expected = [0.0, 0.05, 0.15, 0.25, 0.35]
-        assert_sim_match(mov, expected, x, dir_path='/home/gaspar/git/pyhacores/playground')
+        assert_sim_match(mov, expected, x)
 
     def test_window3(self):
         mov = MovingAverage(window_len=4)
         x = [-0.2, 0.05, 1.0, -0.9571, 0.0987]
         expected = [-0.05, -0.0375, 0.2125, -0.026775, 0.0479]
-        assert_sim_match(mov, expected, x, dir_path='/home/gaspar/git/pyhacores/playground')
+        assert_sim_match(mov, expected, x)
 
 
     def test_max(self):
