@@ -14,10 +14,7 @@ class FSKDemodulator(HW):
     """
 
     def __init__(self, deviation, fs, sps):
-        self.fs = fs
-        self.deviation = deviation
-
-        self.gain = fs / (2 * np.pi * self.deviation) / np.pi
+        self.gain = fs / (2 * np.pi * deviation) / np.pi
 
         self.demod = QuadratureDemodulator(self.gain)
         self.match = MovingAverage(sps)
