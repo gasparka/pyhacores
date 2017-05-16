@@ -8,6 +8,7 @@ import warnings
 
 from runipy.notebook_runner import NotebookRunner
 
+
 wrapped_stdin = sys.stdin
 sys.stdin = sys.__stdin__
 sys.stdin = wrapped_stdin
