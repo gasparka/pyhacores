@@ -45,6 +45,7 @@ class FIR(HW):
             if i == 0:
                 self.next.acc[0] = self.mul[i]
             else:
+                b = self.acc[i - 1] + self.mul[i]
                 self.next.acc[i] = self.acc[i - 1] + self.mul[i]
 
         self.next.out = self.acc[-1]
