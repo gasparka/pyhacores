@@ -2,7 +2,7 @@ import numpy as np
 
 from pyha.common.const import Const
 from pyha.common.hwsim import HW, default_sfix
-from pyha.common.sfix import Sfix, left_index, right_index, fixed_wrap
+from pyha.common.sfix import Sfix, left_index, right_index, fixed_wrap, fixed_truncate
 from pyha.common.sfix import resize
 from pyha.common.util import is_power2
 
@@ -14,7 +14,7 @@ class MovingAverage(HW):
     :param window_len: Size of the moving average window, must be power of 2
     """
 
-    def __init__(self, window_len, in_t=default_sfix):
+    def __init__(self, window_len):
         if window_len < 2:
             raise AttributeError('Window length must be >= 2')
 
@@ -25,11 +25,17 @@ class MovingAverage(HW):
         self.window_pow = int(np.log2(window_len))
 
         # registers
-        self.shift_register = [in_t] * self.window_len
-        self.sum = Sfix(0, self.window_pow + in_t.left, in_t.right, overflow_style=fixed_wrap)
+        self.shift_register = [Sfix()] * self.window_len
+        self.sum = Sfix(left=self.window_pow, overflow_style=fixed_wrap, round_style=fixed_truncate)
+        self.out = Sfix(0, 0, -17, overflow_style=fixed_wrap, round_style=fixed_truncate)
+
+        # these can be removed actually? Fitter optimizes this out
+        self.window_len = Const(self.window_len)
+        self.window_pow = Const(self.window_pow)
 
         # module delay
-        self._delay = 1
+        self._delay = 2
+        self._group_delay = (window_len-1)/2
 
     def main(self, x):
         """
@@ -44,14 +50,14 @@ class MovingAverage(HW):
         """
 
         # add new element to shift register
-        self.next.shift_register = [x] + self.shift_register[:-1]
+        self.shift_register = [x] + self.shift_register[:-1]
 
         # calculate new sum
-        self.next.sum = self.sum + x - self.shift_register[-1]
+        self.sum = self.sum + x - self.shift_register[-1]
 
-        # divide sum by amount of window_len, and resize to same format as input 'x'
-        ret = resize(self.sum >> self.window_pow, size_res=x)
-        return ret
+        # divide sum by amount of window_len
+        self.out = self.sum >> self.window_pow
+        return self.out
 
     def model_main(self, inputs):
         taps = [1 / self.window_len] * self.window_len

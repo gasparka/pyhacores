@@ -12,8 +12,8 @@ class Source(HW):
         self._delay = 1
 
     def main(self, real, imag):
-        self.next.out.real = scalb(real, 4)
-        self.next.out.imag = scalb(imag, 4)
+        self.out.real = scalb(real, 4)
+        self.out.imag = scalb(imag, 4)
         return self.out
 
     def model_main(self, i, q):
@@ -29,8 +29,8 @@ class Sink(HW):
         self._delay = 1
 
     def main(self, c):
-        self.next.out_real = scalb(c.real, -4)
-        self.next.out_imag = scalb(c.imag, -4)
+        self.out_real = scalb(c.real, -4)
+        self.out_imag = scalb(c.imag, -4)
         return self.out_real, self.out_imag
 
     def model_main(self, c):

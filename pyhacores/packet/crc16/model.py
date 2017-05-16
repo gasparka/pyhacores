@@ -28,9 +28,10 @@ class CRC16(HW):
         else:
             lfsr = self.lfsr
         out = lfsr & 0x8000
-        self.next.lfsr = ((lfsr << 1) | din) & 0xFFFF
+        next = ((lfsr << 1) | din) & 0xFFFF
         if out != 0:
-            self.next.lfsr = self.next.lfsr ^ self.xor
+            next = next ^ self.xor
+        self.lfsr = next
         return self.lfsr
 
     def model_main(self, data, reload):
