@@ -50,13 +50,13 @@ class MovingAverage(HW):
         """
 
         # add new element to shift register
-        self.next.shift_register = [x] + self.shift_register[:-1]
+        self.shift_register = [x] + self.shift_register[:-1]
 
         # calculate new sum
-        self.next.sum = self.sum + x - self.shift_register[-1]
+        self.sum = self.sum + x - self.shift_register[-1]
 
         # divide sum by amount of window_len
-        self.next.out = self.sum >> self.window_pow
+        self.out = self.sum >> self.window_pow
         return self.out
 
     def model_main(self, inputs):

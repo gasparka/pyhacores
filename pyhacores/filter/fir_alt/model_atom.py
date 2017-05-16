@@ -30,8 +30,8 @@ class MAC(HW):
         self._delay = 2
 
     def main(self, a, sum_in):
-        self.next.mul = self.coef * a
-        self.next.acc = self.mul + sum_in
+        self.mul = self.coef * a
+        self.acc = self.mul + sum_in
         return self.acc
 
     def model_main(self, a):
@@ -57,7 +57,7 @@ class FIR_atom(HW):
         for mav in self.mac:
             sum_in = mav.main(x, sum_in)
 
-        self.next.out = sum_in
+        self.out = sum_in
         return self.out
 
     def model_main(self, x):

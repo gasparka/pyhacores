@@ -27,14 +27,14 @@ class HeaderCorrelator(HW):
         :param din: bit in
         :return: True if 100% correlation
         """
-        self.next.shr = self.shr[1:] + [din]
+        self.shr = self.shr[1:] + [din]
         ret = False
         if self.cooldown == 0:
             if self.shr == self.header:
-                self.next.cooldown = self.cooldown_reset
+                self.cooldown = self.cooldown_reset
                 ret = True
         else:
-            self.next.cooldown = self.next.cooldown - 1
+            self.cooldown = self.cooldown - 1
         return ret
 
     def model_main(self, data):
