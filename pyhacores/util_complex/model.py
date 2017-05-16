@@ -11,8 +11,8 @@ class Conjugate(HW):
         self._delay = 1
 
     def main(self, x):
-        self.next.outreg.real = x.real
-        self.next.outreg.imag = -x.imag
+        self.outreg.real = x.real
+        self.outreg.imag = -x.imag
         return self.outreg
 
     def model_main(self, x):
@@ -34,13 +34,13 @@ class ComplexMultiply(HW):
         self._delay = 2
 
     def main(self, a, b):
-        self.next.real_xu = a.real * b.real
-        self.next.real_yv = a.imag * b.imag
-        self.next.outreg.real = self.real_xu - self.real_yv
+        self.real_xu = a.real * b.real
+        self.real_yv = a.imag * b.imag
+        self.outreg.real = self.real_xu - self.real_yv
 
-        self.next.imag_xv = a.real * b.imag
-        self.next.imag_yu = a.imag * b.real
-        self.next.outreg.imag = self.imag_xv + self.imag_yu
+        self.imag_xv = a.real * b.imag
+        self.imag_yu = a.imag * b.real
+        self.outreg.imag = self.imag_xv + self.imag_yu
 
         return self.outreg
 

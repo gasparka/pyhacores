@@ -43,30 +43,30 @@ class Cordic(HW):
         """
         CORDIC works in only 1 quadrant, this performs steps to make it usable on other qudrants.
         """
-        self.next.x[0] = x
-        self.next.y[0] = y
-        self.next.phase[0] = phase
+        self.x[0] = x
+        self.y[0] = y
+        self.phase[0] = phase
         if self.mode == CordicMode.ROTATION:
             if phase > 0.5:
                 # > np.pi/2
-                self.next.x[0] = -x
-                self.next.phase[0] = phase - 1.0
+                self.x[0] = -x
+                self.phase[0] = phase - 1.0
             elif phase < -0.5:
                 # < -np.pi/2
-                self.next.x[0] = -x
-                self.next.phase[0] = phase + 1.0
+                self.x[0] = -x
+                self.phase[0] = phase + 1.0
 
         elif self.mode == CordicMode.VECTORING:
             if x < 0.0 and y > 0.0:
                 # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
-                self.next.x[0] = -x
-                self.next.y[0] = -y
-                self.next.phase[0] = Sfix(1.0, phase)
+                self.x[0] = -x
+                self.y[0] = -y
+                self.phase[0] = Sfix(1.0, phase)
             elif x < 0.0 and y < 0.0:
                 # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
-                self.next.x[0] = -x
-                self.next.y[0] = -y
-                self.next.phase[0] = Sfix(-1.0, phase)
+                self.x[0] = -x
+                self.y[0] = -y
+                self.phase[0] = Sfix(-1.0, phase)
 
     def main(self, x, y, phase):
         """
@@ -83,13 +83,13 @@ class Cordic(HW):
                 direction = self.y[i] < 0
 
             if direction:
-                self.next.x[i + 1] = self.x[i] - (self.y[i] >> i)
-                self.next.y[i + 1] = self.y[i] + (self.x[i] >> i)
-                self.next.phase[i + 1] = self.phase[i] - self.phase_lut_fix[i]
+                self.x[i + 1] = self.x[i] - (self.y[i] >> i)
+                self.y[i + 1] = self.y[i] + (self.x[i] >> i)
+                self.phase[i + 1] = self.phase[i] - self.phase_lut_fix[i]
             else:
-                self.next.x[i + 1] = self.x[i] + (self.y[i] >> i)
-                self.next.y[i + 1] = self.y[i] - (self.x[i] >> i)
-                self.next.phase[i + 1] = self.phase[i] + self.phase_lut_fix[i]
+                self.x[i + 1] = self.x[i] + (self.y[i] >> i)
+                self.y[i + 1] = self.y[i] - (self.x[i] >> i)
+                self.phase[i + 1] = self.phase[i] + self.phase_lut_fix[i]
 
         return self.x[-1], self.y[-1], self.phase[-1]
 
@@ -116,8 +116,8 @@ class ToPolar(HW):
         abs, _, angle = self.core.main(c.real, c.imag, phase)
 
         # get rid of CORDIC gain and extra bits
-        self.next.out_abs = abs * (1.0 / 1.646760)
-        self.next.out_angle = angle
+        self.out_abs = abs * (1.0 / 1.646760)
+        self.out_angle = angle
         return self.out_abs, self.out_angle
 
     def model_main(self, cin):
@@ -176,7 +176,7 @@ class NCO(HW):
         :param phase_inc: amount of rotation applied for next clock cycle, must be normalized to -1 to 1.
         :rtype: ComplexSfix
         """
-        self.next.phase_acc = self.phase_acc + phase_inc
+        self.phase_acc = self.phase_acc + phase_inc
 
         start_x = Sfix(1.0 / 1.646760, 0, -17)  # gets rid of cordic gain, could add amplitude modulation here
         start_y = Sfix(0.0, 0, -17)
