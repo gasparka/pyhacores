@@ -41,13 +41,14 @@ class FIR(HW):
         Transposed form FIR implementation, uses full precision
         """
         for i in range(len(self.taps_fix_reversed)):
-            self.next.mul[i] = x * self.taps_fix_reversed[i]
+            self.mul[i] = x * self.taps_fix_reversed[i]
             if i == 0:
-                self.next.acc[0] = self.mul[i]
+                self.acc[0] = self.mul[i]
             else:
-                self.next.acc[i] = self.acc[i - 1] + self.mul[i]
+                b = self.acc[i - 1] + self.mul[i]
+                self.acc[i] = self.acc[i - 1] + self.mul[i]
 
-        self.next.out = self.acc[-1]
+        self.out = self.acc[-1]
         return self.out
 
     def model_main(self, x):

@@ -7,8 +7,14 @@ from pyhacores.dc_removal.model import DCRemoval
 def test_basic():
     x = [0.5] * 16 + [-0.5] * 16
 
-    dut = DCRemoval(8)
+    dut = DCRemoval(8, 2)
     assert_sim_match(dut, None, x)
+
+def test_quad4_len32():
+    x = [0.5] * 64 + [-0.5] * 64
+
+    dut = DCRemoval(32, 4)
+    assert_sim_match(dut, None, x, dir_path='/home/gaspar/git/pyhacores/playground')
 
 
 def test_saturation():

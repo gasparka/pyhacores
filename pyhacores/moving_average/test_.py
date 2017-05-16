@@ -22,6 +22,7 @@ class TestMovingAverage:
         expected = [-0.05, -0.0375, 0.2125, -0.026775, 0.0479]
         assert_sim_match(mov, expected, x)
 
+
     def test_max(self):
         mov = MovingAverage(window_len=4)
         x = [1., 1., 1., 1., 1., 1.]
