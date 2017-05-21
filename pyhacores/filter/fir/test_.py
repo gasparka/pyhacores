@@ -5,6 +5,14 @@ from scipy import signal
 from pyhacores.filter.fir.model import FIR
 
 
+def test_simple():
+    taps = [0.01, 0.02]
+    dut = FIR(taps)
+    inp = [0.1, 0.2, 0.3, 0.4]
+
+    assert_sim_match(dut, None, inp)
+
+
 def test_symmetric():
     taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
     dut = FIR(taps)

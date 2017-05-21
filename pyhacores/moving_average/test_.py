@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pyha.simulation.simulation_interface import assert_sim_match
+from pyha.simulation.simulation_interface import assert_sim_match, SIM_HW_MODEL
 from pyhacores.moving_average.model import MovingAverage
 
 
