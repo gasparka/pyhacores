@@ -33,17 +33,3 @@ class CRC16(HW):
             next = next ^ self.xor
         self.lfsr = next
         return self.lfsr
-
-    def model_main(self, data, reload):
-        ret = []
-        lfsr = self.init_galois
-        for din, rl in zip(data, reload):
-            if rl:
-                lfsr = self.init_galois
-
-            out = lfsr & 0x8000
-            lfsr = ((lfsr << 1) | din) & 0xFFFF
-            if out:
-                lfsr ^= self.xor
-            ret.append(lfsr)
-        return ret
