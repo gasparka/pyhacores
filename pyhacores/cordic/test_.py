@@ -26,19 +26,25 @@ def chirp_stimul():
 
 
 class TestCordic:
-    def test_vectoring(self):
-        np.random.seed(123456)
-        inputs = (np.random.rand(3, 128) * 2 - 1)
+    def test_small_vectoring(self):
+        inputs = (np.random.rand(3, 8) * 2 - 1)
 
         dut = Cordic(16, CordicMode.VECTORING)
-        assert_sim_match(dut, None, *inputs)
+        assert_sim_match(dut, None, *inputs, atol=1e-4)
+
+    def test_vectoring(self):
+        np.random.seed(123456)
+        inputs = 0.5 * (np.random.rand(3, 128) * 2 - 1)
+
+        dut = Cordic(16, CordicMode.VECTORING)
+        assert_sim_match(dut, None, *inputs, atol=1e-4)
 
     def test_rotation(self):
         np.random.seed(123456)
-        inputs = (np.random.rand(3, 128) * 2 - 1)
+        inputs = 0.5 * (np.random.rand(3, 128) * 2 - 1)
 
         dut = Cordic(16, CordicMode.ROTATION)
-        assert_sim_match(dut, None, *inputs)
+        assert_sim_match(dut, None, *inputs, atol=1e-4)
 
 
 class TestToPolar:
