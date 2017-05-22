@@ -28,24 +28,19 @@ class FIR(HW):
 
         # registers
         self.acc = [Sfix(left=1, round_style=fixed_truncate, overflow_style=fixed_wrap)] * len(self.taps)
-        self.mul = [Sfix(round_style=fixed_truncate, overflow_style=fixed_wrap)] * len(self.taps)
         self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         # constants
         self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
-        # self.taps_fix_reversed = [Sfix(x, 0, -17) for x in reversed(self.taps)]
-        self._delay = 3
+        self._delay = 2
 
     def main(self, x):
         """
-        Transposed form FIR implementation, uses full precision
+        Transposed form FIR implementation, this implementation has problems if you plan to rapidly switch the taps.
         """
-        for i in range(len(self.taps_fix_reversed)):
-            self.mul[i] = x * self.taps_fix_reversed[i]
-            if i == 0:
-                self.acc[0] = self.mul[i]
-            else:
-                self.acc[i] = self.acc[i - 1] + self.mul[i]
+        self.acc[0] = x * self.taps_fix_reversed[0]
+        for i in range(1, len(self.taps_fix_reversed)):
+            self.acc[i] = self.acc[i - 1] + x * self.taps_fix_reversed[i]
 
         self.out = self.acc[-1]
         return self.out
