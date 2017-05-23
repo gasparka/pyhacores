@@ -45,7 +45,7 @@ def test_remez16():
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 64)
 
-    assert_sim_match(dut, None, inp)
+    assert_sim_match(dut, None, inp, dir_path='/home/gaspar/git/pyhacores/playground')
 
 
 def test_remez32():
