@@ -8,7 +8,7 @@ from pyha.common.util import load_gnuradio_file
 from pyha.simulation.simulation_interface import assert_sim_match, SIM_MODEL, SIM_HW_MODEL, \
     SIM_RTL, plot_assert_sim_match
 
-from pyhacores.under_construction.quadrature_demodulator.model import QuadratureDemodulator
+from pyhacores.quadrature_demodulator.model import QuadratureDemodulator
 
 
 class TestFm:

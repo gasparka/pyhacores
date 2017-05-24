@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyha.common.const import Const
-from pyha.common.hwsim import HW
+from pyha.common.hwsim import HW, default_sfix
 from pyha.common.sfix import ComplexSfix, resize, Sfix, fixed_truncate
 
 from pyhacores.cordic.model import Angle
@@ -14,14 +14,19 @@ class QuadratureDemodulator(HW):
 
     :param gain: inverse of tx sensitivity. In RTL this is further multiplied by PI, because CORDIC returns angle in -1 to 1 range.
     """
-    def __init__(self, gain):
+    def __init__(self, gain=1.0, normalized_output=True):
+        """
+
+        :param gain: inverse of tx sensitivity
+        :param normalized_output: If True, returns in [-1 ... 1] range, else in [-pi .. pi]
+        """
         self.gain = gain
 
         # components / registers
         self.conjugate = Conjugate()
         self.complex_mult = ComplexMultiply()
         self.angle = Angle()
-        self.out = Sfix()
+        self.y = Sfix(0, default_sfix, round_style=fixed_truncate)
 
         # constants
         # pi term puts angle output to pi range
@@ -39,14 +44,11 @@ class QuadratureDemodulator(HW):
         conj = self.conjugate.main(c)
         mult = self.complex_mult.main(c, conj)
         angle = self.angle.main(mult)
-        fix_gain = resize(self.gain_sfix * angle, c.real, round_style=fixed_truncate)
 
-        # output register
-        self.next.out = fix_gain
-        return self.out
+        self.y = self.gain_sfix * angle
+        return self.y
 
     def model_main(self, c):
-        """ Model that verification is ran against """
         demod = np.angle(c[1:] * np.conjugate(c[:-1]))
         fix_gain = self.gain * demod
         return fix_gain
