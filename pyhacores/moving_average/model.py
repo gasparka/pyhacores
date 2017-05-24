@@ -13,51 +13,40 @@ class MovingAverage(HW):
 
     :param window_len: Size of the moving average window, must be power of 2
     """
-
     def __init__(self, window_len):
+        self.window_len = window_len
         if window_len < 2:
             raise AttributeError('Window length must be >= 2')
 
         if not is_power2(window_len):
             raise AttributeError('Window length must be power of 2')
 
-        self.window_len = window_len
-        self.window_pow = int(np.log2(window_len))
+        self.mem = [Sfix()] * self.window_len
+        self.sum = Sfix(0, 0, -17, overflow_style=fixed_wrap)
 
-        # registers
-        self.shift_register = [Sfix()] * self.window_len
-        self.sum = Sfix(left=self.window_pow, overflow_style=fixed_wrap, round_style=fixed_truncate)
-        self.out = Sfix(0, 0, -17, overflow_style=fixed_wrap, round_style=fixed_truncate)
+        self.window_pow = Const(int(np.log2(window_len)))
 
-        # these can be removed actually? Fitter optimizes this out
-        self.window_len = Const(self.window_len)
-        self.window_pow = Const(self.window_pow)
-
-        # module delay
-        self._delay = 2
-        self._group_delay = (window_len-1)/2
+        self._delay = 1
 
     def main(self, x):
         """
         This works by keeping a history of 'window_len' elements and sum of them.
-        Every clock last element will be subtracted and new added to the sum.
-        Sum is then divided by the 'window_len'.
+        Every clock last element will be subtracted and new added to the sum. These are already scaled before.
         More good infos: https://www.dsprelated.com/showarticle/58.php
 
         :param x: input to average
         :return: averaged output
         :rtype: Sfix
         """
+        # divide by window_pow
+        div = x >> self.window_pow
 
         # add new element to shift register
-        self.shift_register = [x] + self.shift_register[:-1]
+        self.mem = [div] + self.mem[:-1]
 
         # calculate new sum
-        self.sum = self.sum + x - self.shift_register[-1]
-
-        # divide sum by amount of window_len
-        self.out = self.sum >> self.window_pow
-        return self.out
+        self.sum = self.sum + div - self.mem[-1]
+        return self.sum
 
     def model_main(self, inputs):
         taps = [1 / self.window_len] * self.window_len
