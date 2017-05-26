@@ -6,14 +6,14 @@ from pyha.common.sfix import resize, ComplexSfix, Sfix, fixed_truncate
 
 class Conjugate(HW):
     def __init__(self):
-        self.outreg = ComplexSfix(0, 0, -17, round_style=fixed_truncate)
+        self.y = ComplexSfix(0, 0, -17, round_style=fixed_truncate)
 
         self._delay = 1
 
     def main(self, x):
-        self.outreg.real = x.real
-        self.outreg.imag = -x.imag
-        return self.outreg
+        self.y.real = x.real
+        self.y.imag = -x.imag
+        return self.y
 
     def model_main(self, x):
         return np.conjugate(x)
