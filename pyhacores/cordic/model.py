@@ -101,8 +101,8 @@ class ToPolar(HW):
 
     def __init__(self):
         self.core = Cordic(13, CordicMode.VECTORING)
-        self.out_abs = Sfix(0, 0, -17, round_style=fixed_truncate)
-        self.out_angle = Sfix(0, 0, -17, round_style=fixed_truncate)
+        self.y_abs = Sfix(0, 0, -17, round_style=fixed_truncate)
+        self.y_angle = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         self._delay = self.core.iterations + 1
 
@@ -116,9 +116,9 @@ class ToPolar(HW):
         abs, _, angle = self.core.main(c.real, c.imag, phase)
 
         # get rid of CORDIC gain and extra bits
-        self.out_abs = abs * (1.0 / 1.646760)
-        self.out_angle = angle
-        return self.out_abs, self.out_angle
+        self.y_abs = abs * (1.0 / 1.646760)
+        self.y_angle = angle
+        return self.y_abs, self.y_angle
 
     def model_main(self, cin):
         # note that angle in -1..1 range
