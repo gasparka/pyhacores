@@ -40,8 +40,11 @@ class QuadratureDemodulator(HW):
         :type c: ComplexSfix
         :rtype: Sfix
         """
-        conj = self.conjugate.main(c)
-        mult = self.complex_mult.main(c, conj)
+        cc = c
+        cc.real = cc.real << 8
+        cc.imag = cc.imag << 8
+        conj = self.conjugate.main(cc)
+        mult = self.complex_mult.main(cc, conj)
         angle = self.angle.main(mult)
 
         self.y = self.gain_sfix * angle
