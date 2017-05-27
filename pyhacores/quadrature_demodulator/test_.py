@@ -6,9 +6,25 @@ import pytest
 from pyha.common.sfix import ComplexSfix
 from pyha.common.util import load_gnuradio_file
 from pyha.simulation.simulation_interface import assert_sim_match, SIM_MODEL, SIM_HW_MODEL, \
-    SIM_RTL, plot_assert_sim_match
+    SIM_RTL, plot_assert_sim_match, debug_assert_sim_match
 
 from pyhacores.quadrature_demodulator.model import QuadratureDemodulator
+
+
+class TestQuadratureDemodulator_taranis:
+    def test_demod(self):
+        x = np.load('data/taranis_sps16_fs1600000.0_band1000000.0_far_onepackage_filter0.1.npy')
+
+        # x = x[:1000]
+
+        dut = QuadratureDemodulator()
+        debug_assert_sim_match(dut, None, x, simulations=[SIM_HW_MODEL])
+
+if __name__ == '__main__':
+    dut = TestQuadratureDemodulator_taranis()
+    dut.test_demod()
+
+
 
 
 class TestFm:
