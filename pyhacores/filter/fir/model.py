@@ -31,16 +31,16 @@ class FIR(HW):
         self.out = Sfix(0, 0, -17, round_style=fixed_truncate)
 
         # constants
-        self.taps_fix_reversed = Const([Sfix(x, 0, -17) for x in reversed(self.taps)])
-        self._delay = 2
+        self.TAPS_REVERSED = [Sfix(x, 0, -17) for x in reversed(self.taps)]
+        self.DELAY = 2
 
     def main(self, x):
         """
         Transposed form FIR implementation, this implementation has problems if you plan to rapidly switch the taps.
         """
-        self.acc[0] = x * self.taps_fix_reversed[0]
-        for i in range(1, len(self.taps_fix_reversed)):
-            self.acc[i] = self.acc[i - 1] + x * self.taps_fix_reversed[i]
+        self.acc[0] = x * self.TAPS_REVERSED[0]
+        for i in range(1, len(self.TAPS_REVERSED)):
+            self.acc[i] = self.acc[i - 1] + x * self.TAPS_REVERSED[i]
 
         self.out = self.acc[-1]
         return self.out

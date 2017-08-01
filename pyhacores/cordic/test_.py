@@ -27,7 +27,7 @@ def chirp_stimul():
 
 class TestCordic:
     def test_small_vectoring(self):
-        inputs = (np.random.rand(3, 8) * 2 - 1)
+        inputs = (np.random.rand(3, 8) * 2 - 1) * 0.5
 
         dut = Cordic(16, CordicMode.VECTORING)
         assert_sim_match(dut, None, *inputs, atol=1e-4)
