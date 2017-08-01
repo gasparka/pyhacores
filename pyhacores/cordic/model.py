@@ -22,13 +22,13 @@ class Cordic(HW):
     """
 
     def __init__(self, iterations, mode):
-        self.mode = Const(mode)
+        self.MODE = mode
         self.iterations = iterations
 
         # + 1 is basically for initial step registers it also helps pipeline code
         self.iterations = iterations + 1
         self.phase_lut = [float(np.arctan(2 ** -i) / np.pi) for i in range(self.iterations)]
-        self.phase_lut_fix = Const([Sfix(x, 0, -24) for x in self.phase_lut])
+        self.PHASE_LUT = [Sfix(x, 0, -24) for x in self.phase_lut]
 
         # pipeline registers
         # give 1 extra bit, as there is stuff like CORDIC gain.. in some cases 2 bits may be needed!
@@ -37,7 +37,7 @@ class Cordic(HW):
         self.y = [Sfix(0, 1, -17, overflow_style=fixed_wrap, round_style=fixed_truncate)] * self.iterations
         self.phase = [Sfix(0, 1, -24, overflow_style=fixed_wrap, round_style=fixed_truncate)] * self.iterations
 
-        self._delay = self.iterations
+        self.DELAY = self.iterations
 
     def initial_step(self, phase, x, y):
         """
@@ -46,7 +46,7 @@ class Cordic(HW):
         self.x[0] = x
         self.y[0] = y
         self.phase[0] = phase
-        if self.mode == CordicMode.ROTATION:
+        if self.MODE == CordicMode.ROTATION:
             if phase > 0.5:
                 # > np.pi/2
                 self.x[0] = -x
@@ -56,7 +56,7 @@ class Cordic(HW):
                 self.x[0] = -x
                 self.phase[0] = phase + 1.0
 
-        elif self.mode == CordicMode.VECTORING:
+        elif self.MODE == CordicMode.VECTORING:
             if x < 0.0 and y > 0.0:
                 # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
                 self.x[0] = -x
@@ -76,20 +76,20 @@ class Cordic(HW):
         self.initial_step(phase, x, y)
 
         # pipelined CORDIC
-        for i in range(len(self.phase_lut_fix) - 1):
-            if self.mode == CordicMode.ROTATION:
+        for i in range(len(self.PHASE_LUT) - 1):
+            if self.MODE == CordicMode.ROTATION:
                 direction = self.phase[i] > 0
-            elif self.mode == CordicMode.VECTORING:
+            elif self.MODE == CordicMode.VECTORING:
                 direction = self.y[i] < 0
 
             if direction:
                 self.x[i + 1] = self.x[i] - (self.y[i] >> i)
                 self.y[i + 1] = self.y[i] + (self.x[i] >> i)
-                self.phase[i + 1] = self.phase[i] - self.phase_lut_fix[i]
+                self.phase[i + 1] = self.phase[i] - self.PHASE_LUT[i]
             else:
                 self.x[i + 1] = self.x[i] + (self.y[i] >> i)
                 self.y[i + 1] = self.y[i] - (self.x[i] >> i)
-                self.phase[i + 1] = self.phase[i] + self.phase_lut_fix[i]
+                self.phase[i + 1] = self.phase[i] + self.PHASE_LUT[i]
 
         return self.x[-1], self.y[-1], self.phase[-1]
 

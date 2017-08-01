@@ -10,12 +10,12 @@ class CRC16(HW):
         :param init_galois: initial value for LFSR. **This must be in galois form, many tools report it in fibo mode only**
         :param xor: feedback value
         """
-        self.xor = Const(xor)
+        self.XOR = xor
         # NB! tools generally report fibo init value...need to convert it!
-        self.init_galois = Const(init_galois)
+        self.INIT_GALOIS = init_galois
         self.lfsr = init_galois
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, din, reload):
         """
@@ -24,12 +24,12 @@ class CRC16(HW):
         :return: current LFSR value
         """
         if reload:
-            lfsr = self.init_galois
+            lfsr = self.INIT_GALOIS
         else:
             lfsr = self.lfsr
         out = lfsr & 0x8000
         next = ((lfsr << 1) | din) & 0xFFFF
         if out != 0:
-            next = next ^ self.xor
+            next = next ^ self.XOR
         self.lfsr = next
         return self.lfsr

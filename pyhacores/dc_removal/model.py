@@ -14,7 +14,7 @@ class DCRemovalSimple(HW):
                      MovingAverage(window_len), MovingAverage(window_len)]
         self.y = Sfix(0, 0, -17)
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, x):
         # run input signal over all the MA's
@@ -48,7 +48,7 @@ class DCRemoval(HW):
         self.mavg = [MovingAverage(window_len) for _ in range(averagers)]
 
         # this is total delay of moving averages
-        hardware_delay = averagers * MovingAverage(window_len)._delay
+        hardware_delay = averagers * MovingAverage(window_len).DELAY
         self.group_delay = int(averagers * (window_len-1)/2)
         total_delay = hardware_delay +  self.group_delay
 
@@ -57,7 +57,7 @@ class DCRemoval(HW):
         self.out = Sfix(0, 0, -17)
 
         # module delay
-        self._delay = total_delay + 1
+        self.DELAY = total_delay + 1
 
     def main(self, x):
         # run signal over all moving averagers

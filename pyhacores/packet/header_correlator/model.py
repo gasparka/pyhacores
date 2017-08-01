@@ -14,13 +14,13 @@ class HeaderCorrelator(HW):
         :param packet_len: this is used as a cooldown, to not discover packets inside packets
         """
 
-        self.cooldown_reset = Const(packet_len - 1)
-        self.header = Const(hex_to_bool_list(header))
+        self.COOLDOWN_RESET = packet_len - 1
+        self.HEADER = hex_to_bool_list(header)
 
         self.cooldown = 0
         self.shr = [False] * 16
 
-        self._delay = 16
+        self.DELAY = 16
 
     def main(self, din):
         """
@@ -30,8 +30,8 @@ class HeaderCorrelator(HW):
         self.shr = self.shr[1:] + [din]
         ret = False
         if self.cooldown == 0:
-            if self.shr == self.header:
-                self.cooldown = self.cooldown_reset
+            if self.shr == self.HEADER:
+                self.cooldown = self.COOLDOWN_RESET
                 ret = True
         else:
             self.cooldown = self.cooldown - 1
@@ -42,8 +42,8 @@ class HeaderCorrelator(HW):
         i = 0
         while i < len(data):
             word = data[i:i + 16]
-            if word == self.header:
+            if word == self.HEADER:
                 rets[i] = True
-                i += self.cooldown_reset
+                i += self.COOLDOWN_RESET
             i += 1
         return rets

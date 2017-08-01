@@ -24,9 +24,9 @@ class MovingAverage(HW):
         self.mem = [Sfix()] * self.window_len
         self.sum = Sfix(0, 0, -17, overflow_style=fixed_wrap)
 
-        self.window_pow = Const(int(np.log2(window_len)))
+        self.WINDOW_POW = int(np.log2(window_len))
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, x):
         """
@@ -39,7 +39,7 @@ class MovingAverage(HW):
         :rtype: Sfix
         """
         # divide by window_pow
-        div = x >> self.window_pow
+        div = x >> self.WINDOW_POW
 
         # add new element to shift register
         self.mem = [div] + self.mem[:-1]

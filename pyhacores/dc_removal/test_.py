@@ -1,5 +1,5 @@
 import pytest
-from pyha.simulation.simulation_interface import assert_sim_match, plot_assert_sim_match
+from pyha.simulation.simulation_interface import assert_sim_match
 
 from pyhacores.dc_removal.model import DCRemoval
 
@@ -10,11 +10,11 @@ def test_basic():
     dut = DCRemoval(8, 2)
     assert_sim_match(dut, None, x)
 
-def test_quad4_len32():
-    x = [0.5] * 64 + [-0.5] * 64
-
-    dut = DCRemoval(32, 4)
-    plot_assert_sim_match(dut, None, x)
+# def test_quad4_len32():
+#     x = [0.5] * 64 + [-0.5] * 64
+#
+#     dut = DCRemoval(32, 4)
+#     plot_assert_sim_match(dut, None, x)
 
 
 def test_saturation():
