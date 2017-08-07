@@ -1,5 +1,6 @@
+from pyha.common.complex_sfix import ComplexSfix
 from pyha.common.hwsim import HW
-from pyha.common.sfix import scalb, ComplexSfix, Sfix
+from pyha.common.sfix import scalb, Sfix
 
 
 class Source(HW):
@@ -9,7 +10,7 @@ class Source(HW):
     def __init__(self):
         self.out = ComplexSfix(0, 0, -17)
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, real, imag):
         self.out.real = scalb(real, 4)
@@ -26,7 +27,7 @@ class Sink(HW):
         self.out_real = Sfix(0, 0, -15)
         self.out_imag = Sfix(0, 0, -15)
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, c):
         self.out_real = scalb(c.real, -4)

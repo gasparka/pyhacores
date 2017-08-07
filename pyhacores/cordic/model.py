@@ -1,10 +1,10 @@
 from enum import Enum
 
 import numpy as np
+from pyha.common.complex_sfix import ComplexSfix
 
-from pyha.common.const import Const
 from pyha.common.hwsim import HW
-from pyha.common.sfix import resize, Sfix, right_index, left_index, fixed_wrap, fixed_truncate, ComplexSfix
+from pyha.common.sfix import resize, Sfix, fixed_wrap, fixed_truncate
 
 
 class CordicMode(Enum):
@@ -104,7 +104,7 @@ class ToPolar(HW):
         self.y_abs = Sfix(0, 0, -17, round_style=fixed_truncate)
         self.y_angle = Sfix(0, 0, -17, round_style=fixed_truncate)
 
-        self._delay = self.core.iterations + 1
+        self.DELAY = self.core.iterations + 1
 
     def main(self, c):
         """
@@ -134,7 +134,7 @@ class Angle(HW):
 
     def __init__(self):
         self.core = ToPolar()
-        self._delay = self.core._delay
+        self.DELAY = self.core.DELAY
 
     def main(self, c):
         _, angle = self.core.main(c)
@@ -152,7 +152,7 @@ class Abs(HW):
 
     def __init__(self):
         self.core = ToPolar()
-        self._delay = self.core._delay
+        self.DELAY = self.core.DELAY
 
     def main(self, c):
         abs, _ = self.core.main(c)
@@ -169,7 +169,8 @@ class NCO(HW):
     def __init__(self):
         self.cordic = Cordic(16, CordicMode.ROTATION)
         self.phase_acc = Sfix(0, 0, -24, overflow_style=fixed_wrap, round_style=fixed_truncate)
-        self._delay = self.cordic.iterations + 1
+        self.out = ComplexSfix(0, 0, -17, round_style=fixed_truncate)
+        self.DELAY = self.cordic.iterations + 1 + 1
 
     def main(self, phase_inc):
         """
@@ -182,10 +183,11 @@ class NCO(HW):
         start_y = Sfix(0.0, 0, -17)
 
         x, y, phase = self.cordic.main(start_x, start_y, self.phase_acc)
-        xr = resize(x, 0, -17)
-        yr = resize(y, 0, -17)
-        retc = ComplexSfix(xr, yr)
-        return retc
+
+        self.out.real = x
+        self.out.imag = y
+
+        return self.out
 
     def model_main(self, phase_list):
         p = np.cumsum(np.array(phase_list) * np.pi)

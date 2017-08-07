@@ -1,14 +1,15 @@
 import numpy as np
+from pyha.common.complex_sfix import ComplexSfix
 
 from pyha.common.hwsim import HW
-from pyha.common.sfix import resize, ComplexSfix, Sfix, fixed_truncate
+from pyha.common.sfix import fixed_truncate
 
 
 class Conjugate(HW):
     def __init__(self):
         self.y = ComplexSfix(0, 0, -17, round_style=fixed_truncate)
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, x):
         self.y.real = x.real
@@ -31,7 +32,7 @@ class ComplexMultiply(HW):
 
         self.y = ComplexSfix(0 + 0j, 0, -17, round_style=fixed_truncate)
 
-        self._delay = 1
+        self.DELAY = 1
 
     def main(self, a, b):
 

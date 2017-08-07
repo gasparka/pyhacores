@@ -1,9 +1,7 @@
 import numpy as np
 
-from pyha.common.const import Const
-from pyha.common.hwsim import HW, default_sfix
-from pyha.common.sfix import Sfix, left_index, right_index, fixed_wrap, fixed_truncate
-from pyha.common.sfix import resize
+from pyha.common.hwsim import HW
+from pyha.common.sfix import Sfix, fixed_wrap
 from pyha.common.util import is_power2
 
 

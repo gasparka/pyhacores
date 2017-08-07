@@ -1,4 +1,3 @@
-from pyha.common.const import Const
 from pyha.common.hwsim import HW
 from pyha.common.util import hex_to_bool_list
 
