@@ -1,8 +1,7 @@
 import numpy as np
 
-from pyha.common.const import Const
 from pyha.common.hwsim import HW, default_sfix
-from pyha.common.sfix import ComplexSfix, resize, Sfix, fixed_truncate
+from pyha.common.sfix import  Sfix, fixed_truncate
 
 from pyhacores.cordic.model import Angle
 from pyhacores.util_complex.model import Conjugate, ComplexMultiply
@@ -29,11 +28,11 @@ class QuadratureDemodulator(HW):
 
         # constants
         # pi term puts angle output to pi range
-        self.gain_sfix = Const(Sfix(self.gain * np.pi, 3, -14))
+        self.GAIN_SFIX = Sfix(self.gain * np.pi, 3, -14)
 
-        self._delay = self.conjugate._delay + \
-                     self.complex_mult._delay + \
-                     self.angle._delay + 1
+        self.DELAY = self.conjugate.DELAY + \
+                     self.complex_mult.DELAY + \
+                     self.angle.DELAY + 1
 
     def main(self, c):
         """
@@ -41,13 +40,13 @@ class QuadratureDemodulator(HW):
         :rtype: Sfix
         """
         cc = c
-        cc.real = cc.real << 8
-        cc.imag = cc.imag << 8
+        # cc.real = cc.real << 8
+        # cc.imag = cc.imag << 8
         conj = self.conjugate.main(cc)
         mult = self.complex_mult.main(cc, conj)
         angle = self.angle.main(mult)
 
-        self.y = self.gain_sfix * angle
+        self.y = self.GAIN_SFIX * angle
         return self.y
 
     def model_main(self, c):
