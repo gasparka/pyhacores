@@ -52,7 +52,7 @@ def test_remez32():
     np.random.seed(1)
     taps = signal.remez(32, [0, 0.1, 0.2, 0.5], [1, 0])
     dut = FIR(taps)
-    inp = np.random.uniform(-1, 1, 64) * 0.9
+    inp = np.random.uniform(-1, 1, 64)
 
     assert_sim_match(dut, None, inp)
 
