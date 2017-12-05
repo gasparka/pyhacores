@@ -1,9 +1,8 @@
 import numpy as np
-from pyha.common.util import plot_freqz
 from pyha.simulation.simulation_interface import assert_sim_match
 from scipy import signal
 
-from pyhacores.filter.fir_alt.model_atom import FIR_atom
+from under_construction.fir_alt.model_atom import FIR_atom
 
 
 def test_demo():
