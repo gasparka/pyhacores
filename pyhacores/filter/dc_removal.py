@@ -6,9 +6,9 @@ from pyhacores import MovingAverage
 
 class DCRemoval(Hardware):
     """
-    Filter out DC component.
-    Loosely based on: https://www.dsprelated.com/showarticle/58.php
-    Change is that the delay is not matched to the output, since the DC is ~constant it does not matter
+    Filter out DC component, loosely based on: https://www.dsprelated.com/showarticle/58.php
+    Change is that the delay is not matched to the output (this keeps the delay at only 1 sample).
+    Delay matching does not matter as the DC is ~constant...though it makes it hard to verify against the model.
     """
     def __init__(self, window_len):
         self.mavg = [MovingAverage(window_len), MovingAverage(window_len),
