@@ -4,7 +4,7 @@ from pyha.common.hwsim import HW, default_sfix
 from pyha.common.sfix import  Sfix, fixed_truncate
 
 from pyhacores.cordic.model import Angle
-from pyhacores.util_complex.model import Conjugate, ComplexMultiply
+from pyhacores.util.model import Conjugate, ComplexMultiply
 
 
 class QuadratureDemodulator(HW):
