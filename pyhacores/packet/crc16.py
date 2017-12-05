@@ -40,7 +40,7 @@ def test_simple_one():
     inp = hex_to_bool_list('8dfc4ff97dffdb11ff438aee29243910365e908970b9475e')
     reload = [False] * len(inp)
 
-    sims = simulate(dut, inp, reload, simulations=['MODEL', 'PYHA'])
+    sims = simulate(dut, inp, reload)
     assert sims['MODEL'][-1] == 0 # CRC was correct
     assert sims_close(sims)
 
@@ -51,7 +51,7 @@ def test_reset_two():
                             '8dfc4ff97dffdb11ff438aee2524391039a4908970b91cdb')
     reload = [False] * 192 + [True] + [False] * 191
 
-    sims = simulate(dut, inp, reload, simulations=['MODEL', 'PYHA'])
+    sims = simulate(dut, inp, reload)
     assert sims['MODEL'][191] == 0  # CRC was correct
     assert sims['MODEL'][-1] == 0 # CRC was correct
     assert sims_close(sims)
