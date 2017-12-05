@@ -4,8 +4,6 @@ import numpy as np
 
 
 class FIR(Hardware):
-    """ Transposed FIR filter """
-
     def __init__(self, taps):
         self.DELAY = 2
         self.TAPS = np.array(taps).tolist()

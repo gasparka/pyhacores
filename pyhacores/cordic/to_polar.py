@@ -53,7 +53,7 @@ class Angle(Hardware):
 
 class Abs(Hardware):
     """
-    Eaual to Numpy.abs()
+    Equal to Numpy.abs()
     """
 
     def __init__(self):
