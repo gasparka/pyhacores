@@ -2,7 +2,7 @@ import pytest
 from pyha import Hardware, Sfix, ComplexSfix, simulate, sims_close
 import numpy as np
 
-from pyhacores import CordicMode, Cordic
+from pyhacores.cordic import CordicMode, Cordic
 
 
 class NCO(Hardware):
