@@ -1,7 +1,7 @@
 from pyha import Hardware, Sfix, simulate, sims_close
 import numpy as np
 
-from pyhacores import MovingAverage
+from pyhacores.filter import MovingAverage
 
 
 class DCRemoval(Hardware):

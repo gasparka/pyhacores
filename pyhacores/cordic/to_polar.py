@@ -1,5 +1,5 @@
-from pyha import Hardware, Sfix, simulate, sims_close, assert_equals
-from pyhacores import Cordic, CordicMode
+from pyha import Hardware, Sfix, simulate, sims_close
+from pyhacores.cordic import Cordic, CordicMode
 import numpy as np
 
 
