@@ -6,7 +6,6 @@ class HeaderCorrelator(Hardware):
     """ Correlate against 16 bit header
     Once header is found, 'packet_len' bits are skipped before next header can be correlated!
     In general you would use this block to reset the CRC calculation.
-    TODO: uses 32 bit logic for cooldown, not a big problem but could save some resources
     """
 
     def __init__(self, header, packet_len):
