@@ -98,7 +98,7 @@ def test_vectoring():
     inputs = 0.5 * (np.random.rand(3, 128) * 2 - 1)
 
     dut = Cordic(16, CordicMode.VECTORING)
-    sim_out = simulate(dut, *inputs, conversion_path='/home/gaspar/git/pyhacores/playground')
+    sim_out = simulate(dut, *inputs)
     assert sims_close(sim_out, atol=1e-4)
 
 
