@@ -67,7 +67,7 @@ class Cordic(Hardware):
         self.initial_step(phase, x, y)
 
         # pipelined CORDIC
-        for i in range(len(self.PHASE_LUT) - 1):
+        for i in range(self.ITERATIONS - 1):
             if self.MODE == CordicMode.ROTATION:
                 direction = self.phase[i] > 0
             elif self.MODE == CordicMode.VECTORING:
@@ -83,14 +83,6 @@ class Cordic(Hardware):
                 self.phase[i + 1] = self.phase[i] + self.PHASE_LUT[i]
 
         return self.x[-1], self.y[-1], self.phase[-1]
-
-
-def test_small_vectoring():
-    inputs = (np.random.rand(3, 8) * 2 - 1) * 0.5
-
-    dut = Cordic(16, CordicMode.VECTORING)
-    sim_out = simulate(dut, *inputs)
-    assert sims_close(sim_out)
 
 
 def test_vectoring():
