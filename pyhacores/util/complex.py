@@ -6,7 +6,7 @@ from pyha import Hardware, ComplexSfix, simulate, sims_close
 class ComplexConjugate(Hardware):
     def __init__(self):
         self.y = ComplexSfix(0, 0, -17,
-                             overflow_style='saturate') # protect against overflow when negating -1
+                             overflow_style='saturate')  # protect against overflow when negating -1
         self.DELAY = 1
 
     def main(self, x):
@@ -44,6 +44,14 @@ def test_conjugate():
     assert sims_close(sims, expect)
 
 
+def test_conjugate_low_magnitude():
+    inp = (np.random.rand(1024) + np.random.rand(1024) * 1j) * 0.01
+
+    dut = ComplexConjugate()
+    sims = simulate(dut, inp)
+    assert sims_close(sims, rtol=1e-6, atol=1e-8)
+
+
 def test_multiply():
     a = [0.123 + .492j, 0.444 - 0.001j, -0.5 + 0.432j, -0.123 - 0.334j]
     b = [0.425 + .445j, -0.234 - 0.1j, -0.05 + 0.32j, 0.453 + 0.5j]
@@ -54,6 +62,17 @@ def test_multiply():
     dut = ComplexMultiply()
     sims = simulate(dut, a, b)
     assert sims_close(sims, y)
+
+
+def test_multiply_low_magnitude():
+    """ Test that Pyha and RTL stuff matches up """
+    a = (np.random.rand(1024) + np.random.rand(1024) * 1j) * 0.01
+    b = (np.random.rand(1024) + np.random.rand(1024) * 1j) * 0.01
+
+    dut = ComplexMultiply()
+    sims = simulate(dut, a, b)
+    print(sims)
+    assert sims_close(sims, rtol=1e-6, atol=1e-8)
 
 
 def test_multiply_harmonic():
