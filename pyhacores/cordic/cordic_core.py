@@ -32,7 +32,7 @@ class Cordic(Hardware):
 
     def initial_step(self, phase, x, y):
         """
-        CORDIC works in only 1 quadrant, this performs steps to make it usable on other qudrants.
+        Transform input to the CORDIC working quadrants
         """
         self.x[0] = x
         self.y[0] = y
@@ -52,12 +52,12 @@ class Cordic(Hardware):
                 # vector in II quadrant -> initial shift by PI to IV quadrant (mirror)
                 self.x[0] = -x
                 self.y[0] = -y
-                self.phase[0] = Sfix(1.0, phase)
+                self.phase[0] = 1.0
             elif x < 0.0 and y < 0.0:
                 # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
                 self.x[0] = -x
                 self.y[0] = -y
-                self.phase[0] = Sfix(-1.0, phase)
+                self.phase[0] = -1.0
 
     def main(self, x, y, phase):
         """
