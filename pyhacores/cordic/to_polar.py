@@ -1,4 +1,4 @@
-from pyha import Hardware, Sfix, simulate, sims_close
+from pyha import Hardware, Sfix, simulate, sims_close, ComplexSfix
 from pyhacores.cordic import Cordic, CordicMode
 import numpy as np
 
@@ -9,7 +9,7 @@ class ToPolar(Hardware):
     """
 
     def __init__(self):
-        self.core = Cordic(13, CordicMode.VECTORING)
+        self.core = Cordic(17, CordicMode.VECTORING)
         self.y_abs = Sfix(0, 0, -17, overflow_style='saturate')
         self.y_angle = Sfix(0, 0, -17, overflow_style='saturate')
 
@@ -20,7 +20,7 @@ class ToPolar(Hardware):
         :type c: ComplexSfix
         :return: abs (gain corrected) angle (in 1 to -1 range)
         """
-        phase = Sfix(0.0, 0, -24)
+        phase = Sfix(0.0, 0, -17)
 
         abs, _, angle = self.core.main(c.real, c.imag, phase)
 
@@ -141,6 +141,42 @@ def test_chirp():
     dut = ToPolar()
     sim_out = simulate(dut, inputs)
     assert sims_close(sim_out, expect, atol=1e-4)
+
+
+def test_angle_randoms():
+    np.random.seed(123456)
+    inputs = (np.random.rand(1024) * 2 - 1) + ((np.random.rand(1024) * 2 - 1) * 1j)
+    inputs *= 0.25
+
+    inputs = [ComplexSfix(v, 0, -17) for v in inputs]
+    inputs = [v.val for v in inputs]
+
+    expect = np.angle(inputs) / np.pi
+
+    dut = Angle()
+    sim_out = simulate(dut, inputs, simulations=['MODEL', 'PYHA'])
+    assert sims_close(sim_out, expected=expect)
+
+    for i, (inp, exp) in enumerate(zip(inputs, expect)):
+        print(f"{i}. {inp} -> {exp}")
+
+    return
+
+def test_angle_unit():
+    np.random.seed(123456)
+    inputs = [-0.04036712646484375-0.03749847412109375j]
+
+    inputs = [ComplexSfix(v, 0, -17) for v in inputs]
+    inputs = [v.val for v in inputs]
+
+    expect = np.angle(inputs) / np.pi
+    print(inputs)
+
+    dut = Angle()
+    # with Sfix._float_mode:
+    sim_out = simulate(dut, inputs, simulations=['MODEL', 'PYHA'])
+    sims_close(sim_out, expected=expect)
+    # assert 0
 
 
 def test_angle_basic():
