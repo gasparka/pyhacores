@@ -17,18 +17,18 @@ class Cordic(Hardware):
     :param mode: vectoring or rotation
     """
 
-    def __init__(self, iterations, mode):
+    def __init__(self, iterations=17, mode=CordicMode.VECTORING):
         self.MODE = mode
         self.ITERATIONS = iterations + 1  # + 1 is for initial step registers it also helps pipeline code
         self.DELAY = self.ITERATIONS
-        self.PHASE_LUT = [Sfix(np.arctan(2 ** -i) / np.pi, 0, -24, round_style='round') for i in range(self.ITERATIONS)]
+        self.PHASE_LUT = [Sfix(np.arctan(2 ** -i) / np.pi, 0, -19, round_style='round') for i in range(self.ITERATIONS)]
 
         # pipeline registers
         # give 1 extra bit, as there is stuff like CORDIC gain.. in some cases 2 bits may be needed!
         # there will be CORDIC gain + abs value held by x can be > 1
-        self.x = [Sfix(0, 1, -17)] * self.ITERATIONS
-        self.y = [Sfix(0, 1, -17)] * self.ITERATIONS
-        self.phase = [Sfix(0, 1, -24)] * self.ITERATIONS
+        self.x = [Sfix(0, 1, -19)] * self.ITERATIONS
+        self.y = [Sfix(0, 1, -19)] * self.ITERATIONS
+        self.phase = [Sfix(0, 1, -19)] * self.ITERATIONS
 
     def initial_step(self, phase, x, y):
         """
@@ -53,6 +53,7 @@ class Cordic(Hardware):
                 self.x[0] = -x
                 self.y[0] = -y
                 self.phase[0] = 1.0
+                # self.phase[0] = 0.0
             elif x < 0.0 and y < 0.0:
                 # vector in III quadrant -> initial shift by -PI to I quadrant (mirror)
                 self.x[0] = -x
