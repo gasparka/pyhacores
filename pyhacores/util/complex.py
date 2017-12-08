@@ -49,7 +49,7 @@ def test_conjugate_low_magnitude():
 
     dut = ComplexConjugate()
     sims = simulate(dut, inp)
-    assert sims_close(sims, rtol=1e-6, atol=1e-8)
+    assert sims_close(sims)
 
 
 def test_multiply():
@@ -71,8 +71,7 @@ def test_multiply_low_magnitude():
 
     dut = ComplexMultiply()
     sims = simulate(dut, a, b)
-    print(sims)
-    assert sims_close(sims, rtol=1e-6, atol=1e-8)
+    assert sims_close(sims)
 
 
 def test_multiply_harmonic():
