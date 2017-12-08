@@ -11,7 +11,7 @@ class NCO(Hardware):
     """
 
     def __init__(self):
-        self.cordic = Cordic(16, CordicMode.ROTATION)
+        self.cordic = Cordic(17, CordicMode.ROTATION)
         self.phase_acc = Sfix(0, 0, -24)
         self.out = ComplexSfix(0, 0, -17, overflow_style='saturate')
         self.DELAY = self.cordic.ITERATIONS + 1 + 1
@@ -45,10 +45,10 @@ def test_basic():
 
     dut = NCO()
     sim_out = simulate(dut, inputs)
-    assert sims_close(sim_out, expect, atol=1e-4)
+    assert sims_close(sim_out, expect)
 
 
-@pytest.mark.parametrize('period', [0.25, 0.50, 0.75, 1, 2, 4])
+@pytest.mark.parametrize('period', [0.25, 0.50, 0.75, 1, 2, 4, 8, 16])
 def test_nco(period):
     fs = 64
     freq = 1
@@ -65,8 +65,8 @@ def test_nco(period):
 
     dut = NCO()
     sims = ['MODEL', 'PYHA', 'RTL']
-    if period == 4:
+    if period == 16:
         sims.append('GATE')
 
     sim_out = simulate(dut, inputs, simulations=sims)
-    assert sims_close(sim_out, expect, atol=1e-4)
+    assert sims_close(sim_out, expect)
