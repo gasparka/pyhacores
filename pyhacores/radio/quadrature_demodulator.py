@@ -104,11 +104,11 @@ def test_demod_phantom2_noise():
     dut = QuadratureDemodulator(gain=1/np.pi)
     sims = simulate(dut, iq)
 
-    import matplotlib.pyplot as plt
-    plt.plot(sims['MODEL'], label='MODEL')
-    plt.plot(sims['PYHA'], label='PYHA')
-    plt.plot(sims['RTL'], label='RTL')
-    plt.legend()
-    plt.show()
+    # import matplotlib.pyplot as plt
+    # plt.plot(sims['MODEL'], label='MODEL')
+    # plt.plot(sims['PYHA'], label='PYHA')
+    # plt.plot(sims['RTL'], label='RTL')
+    # plt.legend()
+    # plt.show()
 
     assert sims_close(sims, atol=1e-4)
