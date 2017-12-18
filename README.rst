@@ -17,7 +17,7 @@ pyhacores
 
 
 
-Cores written with `Pyha <https://github.com/petspats/pyha/>`_
+Cores written with `Pyha <https://github.com/gasparka/pyha/>`_
 
 * Free software: Apache Software License 2.0
 
