@@ -29,6 +29,7 @@ class DCRemoval(Hardware):
         return self.y
 
     def model_main(self, xl):
+        # for simple case this may be equal to ``xl -= np.mean(xl)``
         tmp = xl
         for mav in self.mavg:
             tmp = mav.model_main(tmp)
