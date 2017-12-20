@@ -123,9 +123,6 @@ def chirp_stimul():
     t = np.arange(samples) / fs
     signal = chirp(t, 20.0, t[-1], 100.0)
     signal *= (1.0 + 0.5 * np.sin(2.0 * np.pi * 3.0 * t))
-    # import matplotlib.pyplot as plt
-    # plt.plot(signal)
-    # plt.show()
     analytic_signal = hilbert(signal) * 0.5
     ref_abs = np.abs(analytic_signal)
     ref_instantaneous_phase = np.angle(analytic_signal)
@@ -144,39 +141,24 @@ def test_chirp():
 
 
 def test_angle_randoms():
-    np.random.seed(123456)
+    np.random.seed(123)
     inputs = (np.random.rand(1024) * 2 - 1) + ((np.random.rand(1024) * 2 - 1) * 1j)
     inputs *= 0.25
-
-    inputs = [ComplexSfix(v, 0, -17) for v in inputs]
-    inputs = [v.val for v in inputs]
-
     expect = np.angle(inputs) / np.pi
 
     dut = Angle()
-    sim_out = simulate(dut, inputs, simulations=['MODEL', 'PYHA'])
-    assert sims_close(sim_out, expected=expect)
+    sim_out = simulate(dut, inputs)
+    assert sims_close(sim_out, expected=expect, rtol=1e-3)
 
-    for i, (inp, exp) in enumerate(zip(inputs, expect)):
-        print(f"{i}. {inp} -> {exp}")
-
-    return
 
 def test_angle_unit():
     np.random.seed(123456)
-    inputs = [-0.04036712646484375-0.03749847412109375j]
-
-    inputs = [ComplexSfix(v, 0, -17) for v in inputs]
-    inputs = [v.val for v in inputs]
-
+    inputs = [-0.04036712646484375 - 0.03749847412109375j]
     expect = np.angle(inputs) / np.pi
-    print(inputs)
 
     dut = Angle()
-    # with Sfix._float_mode:
     sim_out = simulate(dut, inputs, simulations=['MODEL', 'PYHA'])
-    sims_close(sim_out, expected=expect)
-    # assert 0
+    sims_close(sim_out, expected=expect, rtol=1e-3)
 
 
 def test_angle_basic():
