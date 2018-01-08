@@ -1,6 +1,6 @@
 import numpy as np
 from pyha.common.hwsim import HW
-from pyha.common.sfix import Sfix, ComplexSfix
+from pyha.common.sfix import Sfix, Complex
 from pyhacores.moving_average.model import MovingAverage
 from pyhacores.under_construction.quadrature_demodulator.model import QuadratureDemodulator
 
@@ -24,7 +24,7 @@ class FSKDemodulator(HW):
 
     def main(self, input):
         """
-        :type  input: ComplexSfix
+        :type  input: Complex
         :rtype: Sfix
         """
         demod = self.demod.main(input)

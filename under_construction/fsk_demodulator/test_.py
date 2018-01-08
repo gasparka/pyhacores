@@ -1,5 +1,5 @@
 import numpy as np
-from pyha.common.sfix import ComplexSfix
+from pyha.common.sfix import Complex
 from pyha.simulation.simulation_interface import assert_sim_match, debug_assert_sim_match, SIM_MODEL, SIM_HW_MODEL
 
 from pyhacores.under_construction.fsk_demodulator.model import FSKDemodulator

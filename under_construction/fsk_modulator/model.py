@@ -37,7 +37,7 @@ into SDR. Implementation uses NCO component, that in turn uses CORDIC algorithm 
         """
         :param symbol: Bit to modulate
         :return: Modulated signal in baseband
-        :rtype: ComplexSfix
+        :rtype: Complex
         """
         if symbol:
             phase_step = self.sensitivity_pos
