@@ -37,7 +37,7 @@ Available cores:
 - `BladeRFSource`_: Convert BladeRF style I/Q (4 downto -11) into Pyha Complex (0 downto -17) type
 - `BladeRFSink`_: Convert Pyha Complex style (0 downto -17) into BladeRF style I/Q (4 downto -11)
 - `ComplexConjugate`_: Complex conjugate with output register
-- `ComplexMultiply`_: Complex multiplycate with output register
+- `ComplexMultiply`_: Complex multiply with output register
 
 
 .. _CORDIC: https://github.com/gasparka/pyhacores/blob/develop/pyhacores/cordic/cordic_core.py
