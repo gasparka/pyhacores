@@ -9,7 +9,7 @@ class CordicMode(Enum):
 
 class Cordic(Hardware):
     """
-    CORDIC algorithm.
+    CORDIC algorithm. This is meant for internal use... as the outputs are not in standard format.
 
     readable paper -> http://www.andraka.com/files/crdcsrvy.pdf
 

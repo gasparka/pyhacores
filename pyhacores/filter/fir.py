@@ -9,16 +9,14 @@ class FIR(Hardware):
         self.TAPS = np.array(taps).tolist()
 
         # registers
-        self.acc = [Sfix()] * len(taps)
+        self.acc = [Sfix(left=1, right=-23)] * len(taps)
         self.out = Sfix(left=0, right=-17, overflow_style='saturate')
 
     def main(self, x):
         """ Transposed FIR structure """
-        for i in range(len(self.acc)):
-            if i == 0:
-                self.acc[0] = x * self.TAPS[-1]
-            else:
-                self.acc[i] = self.acc[i - 1] + x * self.TAPS[len(self.TAPS) - 1 - i]
+        self.acc[0] = x * self.TAPS[-1]
+        for i in range(1, len(self.acc)):
+            self.acc[i] = self.acc[i - 1] + x * self.TAPS[len(self.TAPS) - 1 - i]
 
         self.out = self.acc[-1]
         return self.out
@@ -40,17 +38,6 @@ def test_symmetric():
     taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 64)
-
-    sims = simulate(dut, inp)
-    assert sims_close(sims)
-
-
-def test_sfix_bug():
-    """ There was Sfix None bound based bug that made only 5. output different """
-    np.random.seed(4)
-    taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
-    dut = FIR(taps)
-    inp = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
     sims = simulate(dut, inp)
     assert sims_close(sims)
@@ -90,6 +77,17 @@ def test_remez128():
     taps = signal.remez(128, [0, 0.1, 0.2, 0.5], [1, 0])
     dut = FIR(taps)
     inp = np.random.uniform(-1, 1, 128)
+
+    sims = simulate(dut, inp)
+    assert sims_close(sims, rtol=1e-3)
+
+
+def test_sfix_bug():
+    """ There was Sfix None bound based bug that made only 5. output different """
+    np.random.seed(4)
+    taps = [0.01, 0.02, 0.03, 0.04, 0.03, 0.02, 0.01]
+    dut = FIR(taps)
+    inp = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
     sims = simulate(dut, inp)
     assert sims_close(sims)
