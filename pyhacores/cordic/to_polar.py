@@ -1,4 +1,4 @@
-from pyha import Hardware, Sfix, simulate, sims_close, ComplexSfix
+from pyha import Hardware, Sfix, simulate, sims_close, Complex
 from pyhacores.cordic import Cordic, CordicMode
 import numpy as np
 
@@ -17,7 +17,7 @@ class ToPolar(Hardware):
 
     def main(self, c):
         """
-        :type c: ComplexSfix
+        :type c: Complex
         :return: abs (gain corrected) angle (in 1 to -1 range)
         """
         phase = Sfix(0.0, 0, -17)

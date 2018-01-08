@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pyha import Hardware, Sfix, simulate, sims_close, ComplexSfix
+from pyha import Hardware, Sfix, simulate, sims_close, Complex
 
 import pyhacores
 from data import load_iq
@@ -35,7 +35,7 @@ class QuadratureDemodulator(Hardware):
 
     def main(self, c):
         """
-        :type c: ComplexSfix
+        :type c: Complex
         :rtype: Sfix
         """
         conj = self.conjugate.main(c)
