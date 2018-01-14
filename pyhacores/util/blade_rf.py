@@ -1,4 +1,4 @@
-from pyha import Hardware, ComplexSfix, scalb, Sfix, simulate
+from pyha import Hardware, Complex, scalb, Sfix, simulate
 from pyha.simulation.simulation_interface import assert_equals, sims_close
 import numpy as np
 
@@ -6,7 +6,7 @@ import numpy as np
 class BladeRFSource(Hardware):
     """ Convert BladeRF style I/Q (4 downto -11) into Pyha Complex (0 downto -17) type """
     def __init__(self):
-        self.out = ComplexSfix(0, 0, -17, overflow_style='saturate')
+        self.out = Complex(0, 0, -17, overflow_style='saturate')
         self.DELAY = 1
 
     def main(self, real, imag):

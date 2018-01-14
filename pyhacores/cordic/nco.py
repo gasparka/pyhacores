@@ -1,5 +1,5 @@
 import pytest
-from pyha import Hardware, Sfix, ComplexSfix, simulate, sims_close
+from pyha import Hardware, Sfix, Complex, simulate, sims_close
 import numpy as np
 
 from pyhacores.cordic import CordicMode, Cordic
@@ -13,14 +13,14 @@ class NCO(Hardware):
     def __init__(self):
         self.cordic = Cordic(17, CordicMode.ROTATION)
         self.phase_acc = Sfix(0, 0, -24, wrap_is_ok=True)
-        self.out = ComplexSfix(0, 0, -17, overflow_style='saturate')
+        self.out = Complex(0, 0, -17, overflow_style='saturate')
         self.DELAY = self.cordic.ITERATIONS + 1 + 1
         self.INIT_X = 1.0 / 1.646760  # gets rid of cordic gain, could add amplitude modulation here
 
     def main(self, phase_inc):
         """
         :param phase_inc: amount of rotation applied for next clock cycle, must be normalized to -1 to 1.
-        :rtype: ComplexSfix
+        :rtype: Complex
         """
         self.phase_acc = self.phase_acc + phase_inc
 

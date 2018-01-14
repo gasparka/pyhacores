@@ -41,7 +41,7 @@ def test_simple_one():
     reload = [False] * len(inp)
 
     sims = simulate(dut, inp, reload)
-    assert sims['MODEL'][-1] == 0 # CRC was correct
+    assert sims['MODEL_PYHA'][-1] == 0 # CRC was correct
     assert sims_close(sims)
 
 
@@ -52,6 +52,6 @@ def test_reset_two():
     reload = [False] * 192 + [True] + [False] * 191
 
     sims = simulate(dut, inp, reload)
-    assert sims['MODEL'][191] == 0  # CRC was correct
-    assert sims['MODEL'][-1] == 0 # CRC was correct
+    assert sims['MODEL_PYHA'][191] == 0  # CRC was correct
+    assert sims['MODEL_PYHA'][-1] == 0 # CRC was correct
     assert sims_close(sims)

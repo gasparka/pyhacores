@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
-from pyha import Hardware, ComplexSfix, simulate, sims_close
+from pyha import Hardware, Complex, simulate, sims_close
 
 
 class ComplexConjugate(Hardware):
     def __init__(self):
-        self.y = ComplexSfix(0, 0, -17,
-                             overflow_style='saturate')  # protect against overflow when negating -1
+        self.y = Complex(0, 0, -17,
+                         overflow_style='saturate')  # protect against overflow when negating -1
         self.DELAY = 1
 
     def main(self, x):
@@ -22,7 +22,7 @@ class ComplexMultiply(Hardware):
     """ (x + yj)(u + vj) = (xu - yv) + (xv + yu)j """
 
     def __init__(self):
-        self.y = ComplexSfix(0 + 0j, 0, -17)
+        self.y = Complex(0 + 0j, 0, -17)
         self.DELAY = 1
 
     def main(self, a, b):
