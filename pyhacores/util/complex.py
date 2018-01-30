@@ -5,8 +5,7 @@ from pyha import Hardware, Complex, simulate, sims_close
 
 class ComplexConjugate(Hardware):
     def __init__(self):
-        self.y = Complex(0, 0, -17,
-                             overflow_style='saturate')  # protect against overflow when negating -1
+        self.y = Complex(0, 0, -17, overflow_style='saturate')  # protect against overflow when negating -1
         self.DELAY = 1
 
     def main(self, x):
