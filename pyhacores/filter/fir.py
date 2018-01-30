@@ -6,7 +6,7 @@ import numpy as np
 class FIR(Hardware):
     def __init__(self, taps):
         self.DELAY = 2
-        self.TAPS = np.array(taps).tolist()
+        self.TAPS = taps
 
         # registers
         self.acc = [Sfix(left=1, right=-23)] * len(taps)
