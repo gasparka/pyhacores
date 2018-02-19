@@ -1,6 +1,115 @@
+from copy import deepcopy
+
 import pytest
 from pyha import Hardware, simulate, sims_close, Complex
 import numpy as np
+
+
+class StageR2SDF(Hardware):
+    def __init__(self, fft_size):
+        self.fft_size = fft_size
+        self.fft_half = fft_size // 2
+
+        self.control_mask = (self.fft_half - 1)
+        self.mem = [Complex() for _ in range(self.fft_half)]
+
+    def main(self, x, control):
+        if not (control & self.fft_half):
+            self.mem = [x] + self.mem[:-1]
+            return self.mem[-1]
+        else:
+            up = self.mem[-1] + x
+            down = (self.mem[-1] - x) * W(control & self.control_mask, self.fft_size)
+            self.mem = [down] + self.mem[:-1]
+            return up
+
+def bit_reverse(x, n_bits):
+    return int(np.binary_repr(x, n_bits)[::-1], 2)
+
+class R2SDF(Hardware):
+    def __init__(self, fft_size):
+        self.fft_size = fft_size
+
+        self.n_bits = int(np.log2(fft_size))
+        self.stages = [StageR2SDF(2 ** (pow+1)) for pow in reversed(range(self.n_bits))]
+        self.control = 0
+
+        self.correct_output = [Complex() for _ in range(fft_size)]
+        self.cod = [0] * (fft_size//2+1)
+
+        self.DELAY = (fft_size - 1)  + (5)
+
+    def main(self, x):
+        next_control = (self.control + 1) % self.fft_size
+        self.control = next_control
+
+        tmp = x
+        for stage in self.stages:
+            tmp = stage.main(tmp, self.control)
+
+
+        out = tmp
+        # print(next_control, out)
+        reversed_index = bit_reverse(next_control, self.n_bits)
+
+        # BUGGGG -> test dual port memory!
+        self.correct_output[reversed_index] = deepcopy(tmp)
+        print(reversed_index, self.cod[-1])
+
+        self.cod = [next_control] + self.cod[:-1]
+        ro = self.cod[-1]
+        out = self.correct_output[self.cod[-1]]
+
+        return out
+
+    def model_main(self, x):
+        from scipy.fftpack import fft
+        x = np.array(x).reshape((-1, self.fft_size))
+        return np.hstack(fft(x))
+
+
+def test_fft8():
+    fft_size = 8
+    dut = R2SDF(fft_size)
+
+    inp = np.random.uniform(-1, 1, 32) + np.random.uniform(-1, 1, 32) * 1j
+    inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+
+    import matplotlib.pyplot as plt
+    plt.plot(sims['MODEL'])
+    plt.plot(sims['PYHA'])
+    plt.show()
+    assert sims_close(sims)
+
+
+def test_fft4():
+    fft_size = 4
+    dut = R2SDF(fft_size)
+
+    # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size)*1j
+    inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
+    # inp = list(range(fft_size))
+
+    # inp = [0.1, 0.2]
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    assert sims_close(sims)
+
+
+def test_fft2():
+    fft_size = 2
+    dut = R2SDF(fft_size)
+
+    # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size)*1j
+    inp = [0.1 + 0.2j, 0.3 + 0.4j]
+    # inp = list(range(fft_size))
+
+    # inp = [0.1, 0.2]
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    assert sims_close(sims)
 
 
 # todo:
@@ -74,12 +183,13 @@ class Stream(Hardware):
         if self.valid:
             return self.data
 
+
 class InputStage(Hardware):
     def __init__(self, fft_size):
         self.fft_size = fft_size
         self.a_delayed = [-2] * (fft_size // 2)
         self.state = 0
-        self.DELAY = fft_size//2
+        self.DELAY = fft_size // 2
 
     def switcher(self, x):
         self.state = (self.state + 1) % self.fft_size
@@ -101,7 +211,6 @@ class InputStage(Hardware):
         return out
 
 
-
 def test_input4():
     dut = InputStage(4)
 
@@ -112,16 +221,16 @@ def test_input4():
     assert sims_close(sims, expect)
 
 
-def test_fft4():
-    fft_size = 4
-    dut = FFT(4)
-
-    # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size)*1j
-    inp = [0.1 + 0.2j, 0.3 + 0.4j]
-    inp = [0, 1, 2, 3, 0, 1, 2, 3]
-
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
-    assert sims_close(sims)
+# def test_fft4():
+#     fft_size = 4
+#     dut = FFT(4)
+#
+#     # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size)*1j
+#     inp = [0.1 + 0.2j, 0.3 + 0.4j]
+#     inp = [0, 1, 2, 3, 0, 1, 2, 3]
+#
+#     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+#     assert sims_close(sims)
 
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16])
