@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import pytest
 from pyha import Hardware, simulate, sims_close, Complex
 import numpy as np
@@ -23,41 +21,39 @@ class StageR2SDF(Hardware):
             self.mem = [down] + self.mem[:-1]
             return up
 
+
 def bit_reverse(x, n_bits):
     return int(np.binary_repr(x, n_bits)[::-1], 2)
+
 
 class R2SDF(Hardware):
     def __init__(self, fft_size):
         self.fft_size = fft_size
 
         self.n_bits = int(np.log2(fft_size))
-        self.stages = [StageR2SDF(2 ** (pow+1)) for pow in reversed(range(self.n_bits))]
+        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
         self.control = 0
 
         self.correct_output = [Complex() for _ in range(fft_size)]
-        self.cod = [0] * (fft_size//2+1)
+        self.cod = [0] * (fft_size // 2)
 
-        self.DELAY = (fft_size - 1)  + (5)
+        self.DELAY = (fft_size - 1) \
+                     + len(self.cod)
 
     def main(self, x):
         next_control = (self.control + 1) % self.fft_size
         self.control = next_control
 
+        # execute stages
         tmp = x
         for stage in self.stages:
             tmp = stage.main(tmp, self.control)
 
-
         out = tmp
-        # print(next_control, out)
+        # fix output order
         reversed_index = bit_reverse(next_control, self.n_bits)
-
-        # BUGGGG -> test dual port memory!
-        self.correct_output[reversed_index] = deepcopy(tmp)
-        print(reversed_index, self.cod[-1])
-
+        self.correct_output[reversed_index] = tmp
         self.cod = [next_control] + self.cod[:-1]
-        ro = self.cod[-1]
         out = self.correct_output[self.cod[-1]]
 
         return out
@@ -68,12 +64,54 @@ class R2SDF(Hardware):
         return np.hstack(fft(x))
 
 
+def test_fft32():
+    fft_size = 32
+    dut = R2SDF(fft_size)
+
+    np.random.seed(0)
+    inp = np.random.uniform(-1, 1, 32) + np.random.uniform(-1, 1, 32) * 1j
+    # inp = [0.1 + 0.2j, 0.3 + 0.4j] * 8
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+
+    import matplotlib.pyplot as plt
+    plt.plot(sims['MODEL'])
+    plt.plot(sims['PYHA'])
+    plt.show()
+    assert sims_close(sims)
+
+
+def test_fft16():
+    fft_size = 16
+    dut = R2SDF(fft_size)
+
+    np.random.seed(0)
+    inp = np.random.uniform(-1, 1, 16) + np.random.uniform(-1, 1, 16) * 1j
+    # inp = [0.1 + 0.2j, 0.3 + 0.4j] * 8
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+
+    def bit_reverse(x, n_bits):
+        return int(np.binary_repr(x, n_bits)[::-1], 2)
+
+    def correct_radix2_indexes(N):
+        return [bit_reverse(i, int(np.log2(N))) for i in range(N)]
+
+    sims['PYHA'] = np.array(sims['PYHA'])[correct_radix2_indexes(16)]
+
+    import matplotlib.pyplot as plt
+    plt.plot(sims['MODEL'])
+    plt.plot(sims['PYHA'])
+    plt.show()
+    assert sims_close(sims)
+
+
 def test_fft8():
     fft_size = 8
     dut = R2SDF(fft_size)
 
-    inp = np.random.uniform(-1, 1, 32) + np.random.uniform(-1, 1, 32) * 1j
-    inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
+    inp = np.random.uniform(-1, 1, 64) + np.random.uniform(-1, 1, 64) * 1j
+    # inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
 
@@ -89,7 +127,7 @@ def test_fft4():
     dut = R2SDF(fft_size)
 
     # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size)*1j
-    inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
+    inp = [0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j, 0.1 + 0.2j, 0.3 + 0.4j]
     # inp = list(range(fft_size))
 
     # inp = [0.1, 0.2]
