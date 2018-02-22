@@ -1,50 +1,53 @@
 from pyha import Hardware, simulate, sims_close
+import numpy as np
 
 
-class BitReversalNode(Hardware):
-    def __init__(self, size):
-        self.shr = [0] * size
+def bit_reverse(x, n_bits):
+    return int(np.binary_repr(x, n_bits)[::-1], 2)
 
-    def main(self, data, control):
-        if control:
-            self.shr = [data] + self.shr[:-1]
-            return self.shr[-1]
-        else:
-            self.shr = [self.shr[-1]] + self.shr[:-1]
-            return data
+
+def bit_reversed_indexes(N):
+    return [bit_reverse(i, int(np.log2(N))) for i in range(N)]
 
 
 class BitReversal(Hardware):
 
-    def __init__(self):
-        self.node0 = BitReversalNode(7)
-        self.node1 = BitReversalNode(2)
-        # self.DELAY = 7
+    def __init__(self, fft_size):
+        self.fft_size = fft_size
+        self.mem = [0 for _ in range(fft_size)]
+        self.n_bits = int(np.log2(fft_size))
+
+        # self.DELAY = fft_size//2
 
     def main(self, data, control):
-        # c = bool(control & 8) != bool(control & 1)
-        c = (not bool(control & 8)) or bool(control & 1)
-        out = self.node0.main(data, c)
-        # c = bool(control & 4) != bool(control & 2)
-        # control -= 7
-        c = (not bool(control & 4)) or bool(control & 2)
-        out2 = self.node1.main(out, c)
-        return out, out2
+        reversed_index = bit_reverse(control, self.n_bits)
+
+        # write
+        if control < self.fft_size // 2:
+            self.mem[reversed_index] = data
+        else:
+            self.mem[control] = data
+
+        # read
+        if control & 1:
+            return self.mem[reversed_index]
+        else:
+            return self.mem[control]
+
 
 def test_bit_reversal():
     # inp = [0, 1, 2, 3]
     # expect = [0, 2, 1, 3]
-    data_in = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15] * 2
-    index_in = list(range(32))
+    N = 4
+    base = list(range(N))
+    reverse = bit_reversed_indexes(N)
 
-
-    dut = BitReversal()
-    sims = simulate(dut, data_in, data_in, simulations=['PYHA'])
+    dut = BitReversal(N)
+    sims = simulate(dut, reverse, base, simulations=['PYHA'])
 
     import matplotlib.pyplot as plt
     # plt.plot(sims['MODEL'])
     # plt.plot(sims['PYHA'])
     # plt.show()
-    print("\n\n\n", sims['PYHA'][0])
-    print(sims['PYHA'][1])
+    print("\n\n\n", sims['PYHA'])
     # assert sims_close(sims)
