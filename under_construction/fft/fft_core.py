@@ -1,3 +1,5 @@
+import timeit
+
 import pytest
 from pyha import Hardware, simulate, sims_close, Complex
 import numpy as np
@@ -6,6 +8,7 @@ import numpy as np
 def W(k, N):
     """ e^-j*2*PI*k*n/N, argument k = k * n """
     return np.exp(-1j * (2 * np.pi / N) * k)
+
 
 class StageR2SDF(Hardware):
     def __init__(self, fft_size):
@@ -53,17 +56,41 @@ class R2SDF(Hardware):
         stack = np.hstack(fft(x))
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
-        from under_construction.fft.bit_reversal import bit_reversed_indexes
+        # from under_construction.fft.bit_reversal import bit_reversed_indexes
+
+        def bit_reverse(x, n_bits):
+            return int(np.binary_repr(x, n_bits)[::-1], 2)
+
+        def bit_reversed_indexes(N):
+            return [bit_reverse(i, int(np.log2(N))) for i in range(N)]
+
         rev_index = bit_reversed_indexes(self.fft_size)
         if len(stack.shape) == 1:
             return stack[rev_index]
         assert 0
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512])
 def test_fft32(fft_size):
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
     assert sims_close(sims, rtol=1e-2)
+
+# import pyha.simulation.simulation_interface import simulate
+if __name__ == '__main__':
+    print(timeit.timeit('import pyha; pyha.Complex()'))
+    print(timeit.timeit('from pyha.simulation.simulation_interface import simulate'))
+
+    # fft_size = 256
+    # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    #
+    # dut = R2SDF(fft_size)
+    # sims = simulate(dut, inp, simulations=['PYHA'])
+    # # assert sims_close(sims, rtol=1e-2)
+    #
+    # #python -m plop.collector -f flamegraph fft_core.py
+    # # ./git/FlameGraph/flamegraph.pl --width 5000 x.flame > flame.svg
+
+
