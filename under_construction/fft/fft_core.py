@@ -25,6 +25,11 @@ class StageR2SDF(Hardware):
 
         up_real = resize(self.shr[-1].real + x.real, 0, -17)
         up_imag = resize(self.shr[-1].imag + x.imag, 0, -17)
+
+        if self.FFT_HALF > 2:
+            up_real = up_real >> 1
+            up_imag = up_imag >> 1
+
         up = Complex(up_real, up_imag)
         # up = self.shr[-1] + x
 
@@ -33,8 +38,13 @@ class StageR2SDF(Hardware):
         down_sub_imag = resize(self.shr[-1].imag - x.imag, 0, -17)
 
         twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
-        down_real = resize(resize((down_sub_real * twiddle.real), 0, -17) - resize((down_sub_imag * twiddle.imag), 0, -17), 0, -17)
-        down_imag = resize(resize((down_sub_real * twiddle.imag), 0, -17) + resize((down_sub_imag * twiddle.real), 0, -17), 0, -17)
+        down_real = resize((down_sub_real * twiddle.real) - (down_sub_imag * twiddle.imag), 0, -17)
+        down_imag = resize((down_sub_real * twiddle.imag) + (down_sub_imag * twiddle.real), 0, -17)
+
+        if self.FFT_HALF > 2:
+            down_real = down_real >> 1
+            down_imag = down_imag >> 1
+
         down = Complex(down_real, down_imag)
         # down = (self.shr[-1] - x) * self.TWIDDLES[control & self.control_mask]
 
@@ -50,13 +60,13 @@ class R2SDF(Hardware):
     def __init__(self, fft_size):
         self.FFT_SIZE = fft_size
 
-        # self.n_bits = int(np.log2(fft_size))
-        # self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
-        self.stage32 = StageR2SDF(32)
-        self.stage16 = StageR2SDF(16)
-        self.stage8 = StageR2SDF(8)
-        self.stage4 = StageR2SDF(4)
-        self.stage2 = StageR2SDF(2)
+        self.n_bits = int(np.log2(fft_size))
+        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
+        # self.stage32 = StageR2SDF(32)
+        # self.stage16 = StageR2SDF(16)
+        # self.stage8 = StageR2SDF(8)
+        # self.stage4 = StageR2SDF(4)
+        # self.stage2 = StageR2SDF(2)
 
         self.control = 0
 
@@ -68,15 +78,17 @@ class R2SDF(Hardware):
             next_control = 0
 
         # execute stages
-        out = x
-        out = self.stage32.main(out, self.control)
-        out = self.stage16.main(out, self.control)
-        out = self.stage8.main(out, self.control)
-        out = self.stage4.main(out, self.control)
-        out = self.stage2.main(out, self.control)
         # out = x
-        # for stage in self.stages:
-        #     out = stage.main(out, self.control)
+        # out = self.stage32.main(out, self.control)
+        # out = self.stage16.main(out, self.control)
+        # out = self.stage8.main(out, self.control)
+        # out = self.stage4.main(out, self.control)
+        # out = self.stage2.main(out, self.control)
+        out = x
+        for stage in self.stages:
+            out = stage.main(out, self.control)
+            # out.real = out.real >> 1
+            # out.imag = out.imag >> 1
 
         self.control = next_control
         return out
