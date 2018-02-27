@@ -87,8 +87,6 @@ class R2SDF(Hardware):
         out = x
         for stage in self.stages:
             out = stage.main(out, self.control)
-            # out.real = out.real >> 1
-            # out.imag = out.imag >> 1
 
         self.control = next_control
         return out
@@ -125,7 +123,7 @@ def test_conv():
     assert sims_close(sims, rtol=1e-2)
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048*2])
 def test_fft(fft_size):
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
