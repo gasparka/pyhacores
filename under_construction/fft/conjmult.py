@@ -3,13 +3,17 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 
 
+def conjugate(x):
+    imag = resize(-x.imag, x.imag.left, x.imag.right)
+    return Complex(x.real, imag)
+
 class ConjMult(Hardware):
     def __init__(self):
         self.out = Sfix(0, 0, -17)
         self.DELAY = 1
 
     def main(self, complex_in):
-        self.out = (complex_in.conjugate() * complex_in).real
+        self.out = (conjugate(complex_in) * complex_in).real
         return self.out
 
 

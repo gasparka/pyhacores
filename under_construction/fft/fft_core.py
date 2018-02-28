@@ -1,6 +1,8 @@
 import timeit
+from scipy import signal
 
 import pytest
+from data import load_iq
 from pyha import Hardware, simulate, sims_close, Complex, resize
 import numpy as np
 
@@ -26,7 +28,7 @@ class StageR2SDF(Hardware):
         up_real = resize(self.shr[-1].real + x.real, 0, -17)
         up_imag = resize(self.shr[-1].imag + x.imag, 0, -17)
 
-        if self.FFT_HALF > 2:
+        if self.FFT_HALF > 4:
             up_real = up_real >> 1
             up_imag = up_imag >> 1
 
@@ -41,7 +43,7 @@ class StageR2SDF(Hardware):
         down_real = resize((down_sub_real * twiddle.real) - (down_sub_imag * twiddle.imag), 0, -17)
         down_imag = resize((down_sub_real * twiddle.imag) + (down_sub_imag * twiddle.real), 0, -17)
 
-        if self.FFT_HALF > 2:
+        if self.FFT_HALF > 4:
             down_real = down_real >> 1
             down_imag = down_imag >> 1
 
@@ -69,7 +71,7 @@ class R2SDF(Hardware):
         # self.stage2 = StageR2SDF(2)
 
         self.control = 0
-
+        self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
         self.DELAY = fft_size - 1
 
     def main(self, x):
@@ -94,7 +96,7 @@ class R2SDF(Hardware):
     def model_main(self, x):
         from scipy.fftpack import fft
         x = np.array(x).reshape((-1, self.FFT_SIZE))
-        stack = np.hstack(fft(x))
+        ffts = fft(x)
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
         # from under_construction.fft.bit_reversal import bit_reversed_indexes
@@ -106,9 +108,12 @@ class R2SDF(Hardware):
             return [bit_reverse(i, int(np.log2(N))) for i in range(N)]
 
         rev_index = bit_reversed_indexes(self.FFT_SIZE)
-        if len(stack.shape) == 1:
-            return stack[rev_index]
-        assert 0
+        for i, _ in enumerate(ffts):
+            ffts[i] = ffts[i][rev_index]
+
+        return np.hstack(ffts)
+
+
 
 
 def test_conv():
@@ -130,6 +135,20 @@ def test_fft(fft_size):
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
     assert sims_close(sims, rtol=1e-2)
+
+
+def test_fail():
+    inp = load_iq('/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq')
+    inp = signal.decimate(inp, 8)
+    inp *= 0.25
+    print(len(inp))
+    print(inp.max())
+
+    fft_points = 256
+    # make sure input divides with fft_points
+    inp = np.array(inp[:int(len(inp) // fft_points) * fft_points])
+    dut = R2SDF(fft_points)
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
 
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
