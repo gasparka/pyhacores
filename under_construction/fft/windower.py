@@ -1,5 +1,8 @@
+from scipy import signal
+
 import numpy as np
 import pytest
+from data import load_iq
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 
 
@@ -37,3 +40,20 @@ def test_windower(M):
 
     sims = simulate(dut, inp, simulations=['MODEL', 'MODEL_PYHA', 'PYHA', 'RTL'])
     assert sims_close(sims, rtol=1e-2)
+
+
+def test_fail():
+    fft_points = 256
+    extra_sims = ['RTL']
+
+    inp = load_iq('/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq')
+    inp = signal.decimate(inp, 8)
+    inp *= 0.5
+    print(len(inp))
+    print(inp.max())
+
+    # make sure input divides with fft_points
+    inp = np.array(inp[:int(len(inp) // fft_points) * fft_points])
+
+    dut = Windower(fft_points)
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'] + extra_sims)

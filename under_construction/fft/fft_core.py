@@ -20,7 +20,6 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = [Complex() for _ in range(self.FFT_HALF)]
 
-
         self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def main(self, x, control):
@@ -63,12 +62,16 @@ class R2SDF(Hardware):
         self.FFT_SIZE = fft_size
 
         self.n_bits = int(np.log2(fft_size))
-        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
-        # self.stage32 = StageR2SDF(32)
-        # self.stage16 = StageR2SDF(16)
-        # self.stage8 = StageR2SDF(8)
-        # self.stage4 = StageR2SDF(4)
-        # self.stage2 = StageR2SDF(2)
+        # self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
+
+        self.stage256 = StageR2SDF(256)
+        self.stage128 = StageR2SDF(128)
+        self.stage64 = StageR2SDF(64)
+        self.stage32 = StageR2SDF(32)
+        self.stage16 = StageR2SDF(16)
+        self.stage8 = StageR2SDF(8)
+        self.stage4 = StageR2SDF(4)
+        self.stage2 = StageR2SDF(2)
 
         self.control = 0
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
@@ -80,15 +83,19 @@ class R2SDF(Hardware):
             next_control = 0
 
         # execute stages
-        # out = x
-        # out = self.stage32.main(out, self.control)
-        # out = self.stage16.main(out, self.control)
-        # out = self.stage8.main(out, self.control)
-        # out = self.stage4.main(out, self.control)
-        # out = self.stage2.main(out, self.control)
         out = x
-        for stage in self.stages:
-            out = stage.main(out, self.control)
+        out = self.stage256.main(out, self.control)
+        out = self.stage128.main(out, self.control)
+        out = self.stage64.main(out, self.control)
+        out = self.stage32.main(out, self.control)
+        out = self.stage16.main(out, self.control)
+        out = self.stage8.main(out, self.control)
+        out = self.stage4.main(out, self.control)
+        out = self.stage2.main(out, self.control)
+
+        # out = x
+        # for stage in self.stages:
+        #     out = stage.main(out, self.control)
 
         self.control = next_control
         return out
@@ -114,21 +121,21 @@ class R2SDF(Hardware):
         return np.hstack(ffts)
 
 
-
-
 def test_conv():
-    fft_size = 32
+    fft_size = 256
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
-    inp *= 0.25 / 2
+    inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           'RTL', 'GATE'
+                                           'RTL',
+                                           # 'GATE'
                                            ], conversion_path='/home/gaspar/git/pyhacores/playground')
+    sims['MODEL'] = np.array(sims['MODEL']) * dut.GAIN_CORRECTION
     assert sims_close(sims, rtol=1e-2)
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048*2])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048 * 2])
 def test_fft(fft_size):
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
@@ -150,6 +157,7 @@ def test_fail():
     dut = R2SDF(fft_points)
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
 
+
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
     print(timeit.timeit('import pyha; pyha.Complex()'))
@@ -164,5 +172,3 @@ if __name__ == '__main__':
     #
     # #python -m plop.collector -f flamegraph fft_core.py
     # # ./git/FlameGraph/flamegraph.pl --width 5000 x.flame > flame.svg
-
-

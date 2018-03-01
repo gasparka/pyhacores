@@ -1,5 +1,5 @@
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex
+from pyha import Hardware, simulate, sims_close, Sfix
 import numpy as np
 
 
@@ -23,6 +23,15 @@ class BitReversal(Hardware):
         self.n_bits = int(np.log2(fft_size))
 
         self.DELAY = fft_size
+
+    def bit_reverse(self, control):
+        cfix = Sfix(control, self.n_bits, 0)
+        ret = Sfix(control, self.n_bits, 0)
+        for i in self.n_bits:
+            ret[self.n_bits - i] = cfix[i]
+
+        return int(ret)
+
 
     def main(self, data):
         if self.FFTSHIFT:
@@ -67,5 +76,5 @@ def test_bit_reversal(N, fftshift):
     inp = np.random.uniform(-1, 1, N) + np.random.uniform(-1, 1, N) * 1j
     inp = inp[bit_reversed_indexes(N)]
     dut = BitReversal(N, fftshift)
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL'])
     assert sims_close(sims)
