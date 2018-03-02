@@ -2,12 +2,6 @@ import numpy as np
 import pytest
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix, right_index, left_index
 
-
-def conjugate(x):
-    imag = resize(-x.imag, x.imag.left, x.imag.right)
-    return Complex(x.real, imag)
-
-
 class ConjMult(Hardware):
     def __init__(self):
         self.out = Sfix(0, 0, -17)
