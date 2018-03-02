@@ -1,6 +1,7 @@
 import pytest
 from pyha import Hardware, simulate, sims_close, Sfix, Complex
 import numpy as np
+from copy import copy
 
 
 def bit_reverse(x, n_bits):
@@ -26,7 +27,7 @@ class BitReversal(Hardware):
 
     def bit_reverse(self, control):
         cfix = Sfix(control, self.N_BITS, 0)
-        ret = cfix
+        ret = copy(cfix)
         for i in range(self.N_BITS):
             ret[self.N_BITS - i - 1] = cfix[i]
 
@@ -76,5 +77,7 @@ def test_bit_reversal(N, fftshift):
     inp = np.random.uniform(-1, 1, N) + np.random.uniform(-1, 1, N) * 1j
     inp = inp[bit_reversed_indexes(N)]
     dut = BitReversal(N, fftshift)
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL', 'GATE'], conversion_path='/home/gaspar/git/pyhacores/playground')
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL',
+                                           # 'GATE'
+                                           ])
     assert sims_close(sims)
