@@ -1,9 +1,9 @@
+from pyha.common.stream import Stream
 from scipy import signal
-
 import numpy as np
 import pytest
 from data import load_iq
-from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
+from pyha import Hardware, simulate, sims_close, Complex
 
 
 class Windower(Hardware):
@@ -12,39 +12,50 @@ class Windower(Hardware):
         self.M = M
         self.WINDOW = np.hanning(M)
         self.control = 0
-        self.out = Complex(0, 0, -17)
+
+        self.out = Stream(Complex(), True, False, False)
         self.DELAY = 1
 
-    def main(self, complex_in):
-        self.out.real = complex_in.real * self.WINDOW[self.control]
-        self.out.imag = complex_in.imag * self.WINDOW[self.control]
+    def main(self, inp):
+        """
+        :type inp: Stream(Complex)
+        """
+        if not inp.valid:
+            return self.out
+
+        self.out.data.real = inp.data.real * self.WINDOW[self.control]
+        self.out.data.imag = inp.data.imag * self.WINDOW[self.control]
+        self.out.package_start = self.control == 0
+        self.out.package_end = self.control == self.M - 1
+        self.out.valid = True
 
         next_control = self.control + 1
         if next_control >= self.M:
             next_control = 0
 
         self.control = next_control
+
         return self.out
 
     def model_main(self, complex_in_list):
-        complex_in_list = np.array(complex_in_list).reshape((-1, self.M))
-        stack = np.hstack(complex_in_list * self.WINDOW)
-
-        return stack
+        return complex_in_list * self.WINDOW
 
 
-@pytest.mark.parametrize("M", [2, 4, 8, 16, 32, 64, 128, 256])
+@pytest.mark.parametrize("M", [4, 8, 16, 32, 64, 128, 256])
 def test_windower(M):
     dut = Windower(M)
-    inp = np.random.uniform(-1, 1, M) + np.random.uniform(-1, 1, M) * 1j
+    packets = np.random.randint(1, 4)
+    inp = np.random.uniform(-1, 1, size=(packets, M)) + np.random.uniform(-1, 1, size=(packets, M)) * 1j
 
-    sims = simulate(dut, inp, simulations=['MODEL', 'MODEL_PYHA', 'PYHA', 'RTL'])
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL'])
+
+    # uns = unstream(sims['PYHA'])
     assert sims_close(sims, rtol=1e-2)
 
 
 def test_fail():
     fft_points = 256
-    extra_sims = ['RTL']
+    extra_sims = ['RTL', 'GATE']
 
     inp = load_iq('/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq')
     inp = signal.decimate(inp, 8)
@@ -56,4 +67,4 @@ def test_fail():
     inp = np.array(inp[:int(len(inp) // fft_points) * fft_points])
 
     dut = Windower(fft_points)
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'] + extra_sims)
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'] + extra_sims, conversion_path='/home/gaspar/git/pyhacores/playground')
