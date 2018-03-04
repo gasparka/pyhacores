@@ -1,4 +1,6 @@
 import timeit
+
+from pyha.common.stream import Stream
 from scipy import signal
 
 import pytest
@@ -62,52 +64,58 @@ class R2SDF(Hardware):
         self.FFT_SIZE = fft_size
 
         self.n_bits = int(np.log2(fft_size))
-        # self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
+        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
 
-        self.stage256 = StageR2SDF(256)
-        self.stage128 = StageR2SDF(128)
-        self.stage64 = StageR2SDF(64)
-        self.stage32 = StageR2SDF(32)
-        self.stage16 = StageR2SDF(16)
-        self.stage8 = StageR2SDF(8)
-        self.stage4 = StageR2SDF(4)
-        self.stage2 = StageR2SDF(2)
+        # self.stage256 = StageR2SDF(256)
+        # self.stage128 = StageR2SDF(128)
+        # self.stage64 = StageR2SDF(64)
+        # self.stage32 = StageR2SDF(32)
+        # self.stage16 = StageR2SDF(16)
+        # self.stage8 = StageR2SDF(8)
+        # self.stage4 = StageR2SDF(4)
+        # self.stage2 = StageR2SDF(2)
 
         self.control = 0
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
         self.DELAY = fft_size - 1
 
     def main(self, x):
+
         next_control = self.control + 1
         if next_control == self.FFT_SIZE:
             next_control = 0
 
-        # execute stages
-        out = x
-        out = self.stage256.main(out, self.control)
-        out = self.stage128.main(out, self.control)
-        out = self.stage64.main(out, self.control)
-        out = self.stage32.main(out, self.control)
-        out = self.stage16.main(out, self.control)
-        out = self.stage8.main(out, self.control)
-        out = self.stage4.main(out, self.control)
-        out = self.stage2.main(out, self.control)
+        c = self.control
+        if x.package_start:
+            c = 0
+            next_control = 1
 
-        # out = x
-        # for stage in self.stages:
-        #     out = stage.main(out, self.control)
+        # execute stages
+        # out = x.data
+        # out = self.stage256.main(out, c)
+        # out = self.stage128.main(out, c)
+        # out = self.stage64.main(out, c)
+        # out = self.stage32.main(out, c)
+        # out = self.stage16.main(out, c)
+        # out = self.stage8.main(out, c)
+        # out = self.stage4.main(out, c)
+        # out = self.stage2.main(out, c)
+
+        out = x.data
+        for stage in self.stages:
+            out = stage.main(out, c)
+
 
         self.control = next_control
-        return out
+        return Stream(out, valid=True, package_start=next_control==0, package_end=next_control == self.FFT_SIZE - 1)
 
     def model_main(self, x):
         from scipy.fftpack import fft
-        x = np.array(x).reshape((-1, self.FFT_SIZE))
+        # x = np.array(x).reshape((-1, self.FFT_SIZE))
         ffts = fft(x)
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
         # from under_construction.fft.bit_reversal import bit_reversed_indexes
-
         def bit_reverse(x, n_bits):
             return int(np.binary_repr(x, n_bits)[::-1], 2)
 
@@ -118,21 +126,26 @@ class R2SDF(Hardware):
         for i, _ in enumerate(ffts):
             ffts[i] = ffts[i][rev_index]
 
-        return np.hstack(ffts)
+
+        # apply gain control (to avoid overflows in hardware)
+        ffts *=  self.GAIN_CORRECTION
+
+        # return np.hstack(ffts)
+        return ffts
 
 
 def test_conv():
     fft_size = 256
     dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    inp = np.random.uniform(-1, 1, (1, fft_size)) + np.random.uniform(-1, 1, (1, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           'RTL',
+                                           # 'RTL',
                                            # 'GATE'
                                            ], conversion_path='/home/gaspar/git/pyhacores/playground')
     sims['MODEL'] = np.array(sims['MODEL']) * dut.GAIN_CORRECTION
-    assert sims_close(sims, rtol=1e-2)
+    assert sims_close(sims, rtol=1e-1)
 
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048 * 2])

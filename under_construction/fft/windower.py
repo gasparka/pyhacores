@@ -13,18 +13,22 @@ class Windower(Hardware):
         self.WINDOW = np.hanning(M)
         self.control = 0
 
-        self.out = Stream(Complex(), True, False, False)
+        self.out = Stream(Complex(0.0, 0, -17), True, False, False)
         self.DELAY = 1
 
     def main(self, inp):
         """
         :type inp: Stream(Complex)
         """
-        if not inp.valid:
-            return self.out
+        # if not inp.valid:
+        #     return self.out
+        #
+        # self.out.data.real = inp.data.real * self.WINDOW[self.control]
+        # self.out.data.imag = inp.data.imag * self.WINDOW[self.control]
 
-        self.out.data.real = inp.data.real * self.WINDOW[self.control]
-        self.out.data.imag = inp.data.imag * self.WINDOW[self.control]
+
+        self.out.data.real = inp.real * self.WINDOW[self.control]
+        self.out.data.imag = inp.imag * self.WINDOW[self.control]
         self.out.package_start = self.control == 0
         self.out.package_end = self.control == self.M - 1
         self.out.valid = True
@@ -38,19 +42,43 @@ class Windower(Hardware):
         return self.out
 
     def model_main(self, complex_in_list):
+        complex_in_list = np.array(complex_in_list).reshape((-1, self.M))
         return complex_in_list * self.WINDOW
 
 
 @pytest.mark.parametrize("M", [4, 8, 16, 32, 64, 128, 256])
 def test_windower(M):
     dut = Windower(M)
-    packets = np.random.randint(1, 4)
-    inp = np.random.uniform(-1, 1, size=(packets, M)) + np.random.uniform(-1, 1, size=(packets, M)) * 1j
+    inp = np.random.uniform(-1, 1, M) + np.random.uniform(-1, 1, M) * 1j
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL'])
 
     # uns = unstream(sims['PYHA'])
     assert sims_close(sims, rtol=1e-2)
+
+def test_():
+    fft_points = 8
+
+    inp = load_iq('/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq')
+    inp = signal.decimate(inp, 8)[:len(inp) // 1024]
+    inp *= 0.5
+    inp = np.array(inp[:int(len(inp) // fft_points) * fft_points])
+
+    dut = Windower(fft_points)
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    assert sims_close(sims)
+
+# def test_conv():
+#     M = 2**13
+#     dut = Windower(M)
+#     packets = 1
+#     inp = np.random.uniform(-1, 1, size=(packets, M)) + np.random.uniform(-1, 1, size=(packets, M)) * 1j
+#
+#     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'GATE'], conversion_path='/home/gaspar/git/pyhacores/playground')
+#
+#     # uns = unstream(sims['PYHA'])
+#     assert sims_close(sims, rtol=1e-2)
 
 
 def test_fail():
