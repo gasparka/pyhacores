@@ -134,27 +134,27 @@ class R2SDF(Hardware):
         return ffts
 
 
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+def test_fft(fft_size):
+    dut = R2SDF(fft_size)
+    inp = np.random.uniform(-1, 1, (2, fft_size)) + np.random.uniform(-1, 1, (2, fft_size)) * 1j
+    inp *= 0.25
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    assert sims_close(sims, rtol=1e-1)
+
+
 def test_conv():
     fft_size = 256
     dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, (1, fft_size)) + np.random.uniform(-1, 1, (1, fft_size)) * 1j
+    inp = np.random.uniform(-1, 1, (2, fft_size)) + np.random.uniform(-1, 1, (2, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
                                            # 'RTL',
                                            # 'GATE'
                                            ], conversion_path='/home/gaspar/git/pyhacores/playground')
-    sims['MODEL'] = np.array(sims['MODEL']) * dut.GAIN_CORRECTION
     assert sims_close(sims, rtol=1e-1)
-
-
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 2048 * 2])
-def test_fft(fft_size):
-    dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
-
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
-    assert sims_close(sims, rtol=1e-2)
 
 
 def test_fail():
