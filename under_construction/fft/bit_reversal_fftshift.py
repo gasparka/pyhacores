@@ -3,6 +3,8 @@ from pyha import Hardware, simulate, sims_close, Sfix, Complex
 import numpy as np
 from copy import copy
 
+from pyha.common.stream import Stream
+
 
 def bit_reverse(x, n_bits):
     return int(np.binary_repr(x, n_bits)[::-1], 2)
@@ -33,8 +35,14 @@ class BitReversal(Hardware):
 
         return int(ret)
 
-    def main(self, data):
+    def main(self, stream_in):
         read_index = self.control
+        write_index = self.control
+        self.control += 1
+        if stream_in.package_end:
+            self.control = 0
+            self.state = not self.state
+
         if self.FFTSHIFT:
             if self.control < self.FFT_SIZE // 2:
                 read_index += self.FFT_SIZE // 2
@@ -44,29 +52,21 @@ class BitReversal(Hardware):
         read_index = self.bit_reverse(read_index)
 
         if self.state:
-            self.mem0[self.control] = data
+            self.mem0[write_index] = stream_in.data
             ret = self.mem1[read_index]
         else:
-            self.mem1[self.control] = data
+            self.mem1[write_index] = stream_in.data
             ret = self.mem0[read_index]
 
-        next_control = self.control + 1
-        if next_control == self.FFT_SIZE:
-            next_control = 0
-            self.state = not self.state
-
-        self.control = next_control
-        return ret
+        return Stream(ret, valid=True, package_start=self.control == 0, package_end=self.control == self.FFT_SIZE - 1)
 
     def model_main(self, complex_in_list):
-        complex_in_list = np.array(complex_in_list).reshape((-1, self.FFT_SIZE))
-
         ret = []
         for x in complex_in_list:
             rev = x[bit_reversed_indexes(self.FFT_SIZE)]
             if self.FFTSHIFT:
                 rev = np.fft.fftshift(rev)
-            ret.extend(rev)
+            ret += [rev]
 
         return ret
 
@@ -74,10 +74,26 @@ class BitReversal(Hardware):
 @pytest.mark.parametrize("fftshift", [True, False])
 @pytest.mark.parametrize("N", [2, 4, 8, 16, 32, 64, 128, 256])
 def test_bit_reversal(N, fftshift):
-    inp = np.random.uniform(-1, 1, N) + np.random.uniform(-1, 1, N) * 1j
-    inp = inp[bit_reversed_indexes(N)]
+    packages = np.random.randint(1, 4)
+    inp = np.random.uniform(-1, 1, (packages, N)) + np.random.uniform(-1, 1, (packages, N)) * 1j
+    inp[0] = inp[0][bit_reversed_indexes(N)]
     dut = BitReversal(N, fftshift)
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL',
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+                                           'RTL',
+                                           # 'GATE'
+                                           ])
+    assert sims_close(sims)
+
+
+def test_simple():
+    N = 16
+    inp = np.array(list(range(N))).astype(complex) / 100
+    inp = inp[bit_reversed_indexes(N)]
+    inp = [inp, inp]
+    # inp = np.expand_dims(inp, axis=0)
+    dut = BitReversal(N)
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+                                           # 'RTL',
                                            # 'GATE'
                                            ])
     assert sims_close(sims)

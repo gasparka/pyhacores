@@ -8,6 +8,8 @@ from data import load_iq
 from pyha import Hardware, simulate, sims_close, Complex, resize
 import numpy as np
 
+from under_construction.fft.packager import DataWithIndex, Packager
+
 
 def W(k, N):
     """ e^-j*2*PI*k*n/N, argument k = k * n """
@@ -75,21 +77,12 @@ class R2SDF(Hardware):
         # self.stage4 = StageR2SDF(4)
         # self.stage2 = StageR2SDF(2)
 
-        self.control = 0
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
-        self.DELAY = fft_size - 1
+        self.DELAY = (fft_size - 1) + 1 # +1 is output register
+
+        self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
 
     def main(self, x):
-
-        next_control = self.control + 1
-        if next_control == self.FFT_SIZE:
-            next_control = 0
-
-        c = self.control
-        if x.package_start:
-            c = 0
-            next_control = 1
-
         # execute stages
         # out = x.data
         # out = self.stage256.main(out, c)
@@ -103,15 +96,15 @@ class R2SDF(Hardware):
 
         out = x.data
         for stage in self.stages:
-            out = stage.main(out, c)
+            out = stage.main(out, x.index)
 
-
-        self.control = next_control
-        return Stream(out, valid=True, package_start=next_control==0, package_end=next_control == self.FFT_SIZE - 1)
+        new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
+        self.out.data = out
+        self.out.index = new_index
+        return self.out
 
     def model_main(self, x):
         from scipy.fftpack import fft
-        # x = np.array(x).reshape((-1, self.FFT_SIZE))
         ffts = fft(x)
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
@@ -126,21 +119,37 @@ class R2SDF(Hardware):
         for i, _ in enumerate(ffts):
             ffts[i] = ffts[i][rev_index]
 
-
         # apply gain control (to avoid overflows in hardware)
-        ffts *=  self.GAIN_CORRECTION
+        ffts *= self.GAIN_CORRECTION
 
-        # return np.hstack(ffts)
         return ffts
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+@pytest.mark.parametrize("fft_size", [4, 8, 16, 32, 64, 128, 256, 512, 1024])
 def test_fft(fft_size):
-    dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, (2, fft_size)) + np.random.uniform(-1, 1, (2, fft_size)) * 1j
+    class Dut(Hardware):
+        def __init__(self, size):
+            self.pack = Packager(size)
+            self.second = R2SDF(size)
+            self.DELAY = self.pack.DELAY + self.second.DELAY
+
+        def main(self, data):
+            out = self.pack.main(data)
+            out = self.second.main(out)
+            return out
+
+        def model_main(self, data):
+            out = self.pack.model_main(data)
+            out = self.second.model_main(out)
+            return out
+
+
+    dut = Dut(fft_size)
+    inp = np.random.uniform(-1, 1, fft_size * 2) + np.random.uniform(-1, 1, fft_size * 2) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
+    sims['PYHA'] = DataWithIndex.to2d(sims['PYHA'])
     assert sims_close(sims, rtol=1e-1)
 
 
