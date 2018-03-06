@@ -1,53 +1,62 @@
 import numpy as np
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
-
-
-class Stream(Hardware):
-    def __init__(self, data, valid):
-        self.data = data
-        self.valid = valid
-
-    def _pyha_on_simulation_output(self, list_data):
-        ret = [x.data for x in list_data if x.valid]
-        return ret
+from pyha import Hardware, simulate, sims_close, Sfix
+from pyha.common.util import is_power2
+from under_construction.fft.packager import DataWithIndex
 
 
 class AvgDecimate(Hardware):
-    def __init__(self, decimate_by):
-        self.DECIMATE_BY = decimate_by
-        self.DECIMATE_BITS = int(np.log2(decimate_by))
-        self.control = 0
+    def __init__(self, decimation):
+        assert is_power2(decimation)
+        self.DECIMATION = decimation
+        self.DECIMATE_BITS = int(np.log2(decimation))
         self.sum = Sfix(0, self.DECIMATE_BITS, -17)
-        self.DELAY = self.DECIMATE_BY
+        self.DELAY = self.DECIMATION + 1
 
-    def main(self, float_in):
-        if self.control == 0:
-            valid = True
-            self.sum = float_in
+        self.out = DataWithIndex(Sfix(0.0, 0, -17), index=0, valid=False)
+
+    def main(self, inp):
+        next_index = (inp.index >> self.DECIMATE_BITS) - 1
+        if next_index != self.out.index:
+            self.out = DataWithIndex(self.sum >> self.DECIMATE_BITS, index=next_index, valid=True)
+            self.sum = inp.data
         else:
-            valid = False
-            self.sum += float_in
+            self.out.valid = False
+            self.sum += inp.data
 
-        next_control = self.control + 1
-        if next_control == self.DECIMATE_BY:
-            next_control = 0
-        self.control = next_control
-
-        return Stream(self.sum >> self.DECIMATE_BITS, valid)
+        return self.out
 
     def model_main(self, x):
-        x = np.array(x)
-        x = np.split(x, len(x) // self.DECIMATE_BY)
-        avg = np.average(x, axis=1)
+        x = np.array(x).T
+        splits = np.split(x, len(x) // self.DECIMATION)
+        avg = np.average(splits, axis=1).T
+
         return avg
+
 
 @pytest.mark.parametrize("M", [2, 4, 8, 16, 32, 64, 128, 256])
 def test_avgdecimate(M):
     dut = AvgDecimate(M)
-    inp = np.random.uniform(-1, 1, M*5)
-    # inp = [0.5, 0.5, 0.2, 0.1, 0.9, 0.1]
 
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA', 'RTL'])
-    print(sims)
+    packages = np.random.randint(1, 4)
+    inp = np.random.uniform(-1, 1, size=(packages, 1024))
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+                                           # 'RTL'
+                                           ],
+                    output_callback=DataWithIndex.unpack,
+                    input_callback=DataWithIndex.pack)
+    assert sims_close(sims)
+
+
+def test_simple():
+    M = 2
+    dut = AvgDecimate(M)
+    inp = [[0.5, 0.5, 0.2, 0.1, 0.9, 0.8], [0.5, 0.5, 0.2, 0.1, 0.6, 0.7]]
+
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+                                           # 'RTL'
+                                           ],
+                    output_callback=DataWithIndex.unpack,
+                    input_callback=DataWithIndex.pack)
     assert sims_close(sims)
