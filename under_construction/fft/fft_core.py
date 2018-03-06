@@ -120,12 +120,12 @@ class R2SDF(Hardware):
             ffts[i] = ffts[i][rev_index]
 
         # apply gain control (to avoid overflows in hardware)
-        # ffts *= self.GAIN_CORRECTION
+        ffts *= self.GAIN_CORRECTION
 
         return ffts
 
 
-@pytest.mark.parametrize("fft_size", [4, 8, 16, 32, 64, 128, 256, 512, 1024])
+@pytest.mark.parametrize("fft_size", [4, 8, 16, 32, 64, 128, 256])
 def test_fft(fft_size):
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
@@ -137,33 +137,6 @@ def test_fft(fft_size):
                     output_callback=DataWithIndex.unpack,
                     input_callback=DataWithIndex.pack)
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
-
-
-def test_conv():
-    fft_size = 256
-    dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, (2, fft_size)) + np.random.uniform(-1, 1, (2, fft_size)) * 1j
-    inp *= 0.25
-
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL',
-                                           # 'GATE'
-                                           ], conversion_path='/home/gaspar/git/pyhacores/playground')
-    assert sims_close(sims, rtol=1e-1)
-
-
-def test_fail():
-    inp = load_iq('/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq')
-    inp = signal.decimate(inp, 8)
-    inp *= 0.25
-    print(len(inp))
-    print(inp.max())
-
-    fft_points = 256
-    # make sure input divides with fft_points
-    inp = np.array(inp[:int(len(inp) // fft_points) * fft_points])
-    dut = R2SDF(fft_points)
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
 
 
 # import pyha.simulation.simulation_interface import simulate

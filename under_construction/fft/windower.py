@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex
+from pyha import Hardware, simulate, sims_close, Complex, Sfix
 from under_construction.fft.packager import DataWithIndex, Packager
 
 
@@ -10,13 +10,20 @@ class Windower(Hardware):
         self.M = M
         self.WINDOW = np.hanning(M)
 
-        self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
-        self.DELAY = 1
+        self.coef = Sfix(0.0, 0, -17)
+        self.out = DataWithIndex(Complex(0.0, 0, -17))
+        self.inp_delay = DataWithIndex(Complex(0.0, 0, -17))
+        self.DELAY = 2
 
     def main(self, inp):
-        self.out = inp
-        self.out.data.real = inp.data.real * self.WINDOW[inp.index]
-        self.out.data.imag = inp.data.imag * self.WINDOW[inp.index]
+        # select coef to prepare multiplication on next clock cycle
+        self.coef = self.WINDOW[inp.index]
+        self.inp_delay = inp
+
+        # calculate output
+        self.out = self.inp_delay
+        self.out.data.real = self.inp_delay.data.real * self.coef
+        self.out.data.imag = self.inp_delay.data.imag * self.coef
         return self.out
 
     def model_main(self, complex_in_list):

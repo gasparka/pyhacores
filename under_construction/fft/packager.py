@@ -4,7 +4,7 @@ from pyha import Hardware, simulate, sims_close, Complex
 
 
 class DataWithIndex(Hardware):
-    def __init__(self, data, index, valid=True):
+    def __init__(self, data, index=0, valid=True):
         self.data = data
         self.index = index
         self.valid = valid

@@ -53,6 +53,7 @@ class Spectrogram(Hardware):
 
 
 def test_simple():
+    np.random.seed(0)
     fft_size=128
     dut = Spectrogram(fft_size)
 
