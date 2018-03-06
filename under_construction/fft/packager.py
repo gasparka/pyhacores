@@ -4,15 +4,19 @@ from pyha import Hardware, simulate, sims_close, Complex
 
 
 class DataWithIndex(Hardware):
-    def __init__(self, data, index):
+    def __init__(self, data, index, valid=False):
         self.data = data
         self.index = index
+        self.valid = valid
 
     @staticmethod
     def unpack(data):
         ret = []
         sublist = []
         for elem in data:
+            if not elem.valid:
+                continue
+
             if elem.index == 0:
                 if len(sublist):
                     ret.append(sublist)
