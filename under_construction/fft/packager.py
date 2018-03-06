@@ -9,7 +9,7 @@ class DataWithIndex(Hardware):
         self.index = index
 
     @staticmethod
-    def to2d(data):
+    def unpack(data):
         ret = []
         sublist = []
         for elem in data:
@@ -21,6 +21,14 @@ class DataWithIndex(Hardware):
                 sublist.append(elem.data)
 
         ret.append(sublist)
+        return ret
+
+    @staticmethod
+    def pack(data):
+        ret = []
+        for row in data:
+            ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
+
         return ret
 
 
@@ -60,9 +68,7 @@ def test_packager(M):
     packets = np.random.randint(1, 4)
     inp = np.random.uniform(-1, 1, M * packets) + np.random.uniform(-1, 1, M * packets) * 1j
 
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
-                                           ])
-
-    sims['PYHA'] = DataWithIndex.to2d(sims['PYHA'])
+    sims = simulate(dut, inp, output_callback=DataWithIndex.unpack, simulations=['MODEL', 'PYHA',
+                                                                                 # 'RTL'
+                                                                                 ])
     assert sims_close(sims, rtol=1e-2)

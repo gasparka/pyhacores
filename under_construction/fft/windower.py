@@ -25,28 +25,13 @@ class Windower(Hardware):
 
 @pytest.mark.parametrize("M", [4, 8, 16, 32, 64, 128, 256])
 def test_windower(M):
-    class Dut(Hardware):
-        def __init__(self, size):
-            self.pack = Packager(size)
-            self.window = Windower(size)
-            self.DELAY = self.pack.DELAY + self.window.DELAY
-
-        def main(self, data):
-            out = self.pack.main(data)
-            out = self.window.main(out)
-            return out
-
-        def model_main(self, data):
-            out = self.pack.model_main(data)
-            out = self.window.model_main(out)
-            return out
-
-    dut = Dut(M)
-    inp = np.random.uniform(-1, 1, M) + np.random.uniform(-1, 1, M) * 1j
+    dut = Windower(M)
+    inp = np.random.uniform(-1, 1, size=(2, M)) + np.random.uniform(-1, 1, size=(2, M)) * 1j
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
                                            # 'RTL'
-                                           ])
+                                           ],
+                    output_callback=DataWithIndex.unpack,
+                    input_callback=DataWithIndex.pack)
 
-    sims['PYHA'] = DataWithIndex.to2d(sims['PYHA'])
     assert sims_close(sims, rtol=1e-2)

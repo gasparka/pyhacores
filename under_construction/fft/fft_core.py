@@ -127,30 +127,16 @@ class R2SDF(Hardware):
 
 @pytest.mark.parametrize("fft_size", [4, 8, 16, 32, 64, 128, 256, 512, 1024])
 def test_fft(fft_size):
-    class Dut(Hardware):
-        def __init__(self, size):
-            self.pack = Packager(size)
-            self.second = R2SDF(size)
-            self.DELAY = self.pack.DELAY + self.second.DELAY
-
-        def main(self, data):
-            out = self.pack.main(data)
-            out = self.second.main(out)
-            return out
-
-        def model_main(self, data):
-            out = self.pack.model_main(data)
-            out = self.second.model_main(out)
-            return out
-
-
-    dut = Dut(fft_size)
-    inp = np.random.uniform(-1, 1, fft_size * 2) + np.random.uniform(-1, 1, fft_size * 2) * 1j
+    dut = R2SDF(fft_size)
+    inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
     inp *= 0.25
 
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
-    sims['PYHA'] = DataWithIndex.to2d(sims['PYHA'])
-    assert sims_close(sims, rtol=1e-1)
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+                                           # 'RTL'
+                                           ],
+                    output_callback=DataWithIndex.unpack,
+                    input_callback=DataWithIndex.pack)
+    assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
 def test_conv():
