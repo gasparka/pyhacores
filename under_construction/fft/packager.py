@@ -4,7 +4,7 @@ from pyha import Hardware, simulate, sims_close, Complex
 
 
 class DataWithIndex(Hardware):
-    def __init__(self, data, index, valid=False):
+    def __init__(self, data, index, valid=True):
         self.data = data
         self.index = index
         self.valid = valid
@@ -50,7 +50,7 @@ class Packager(Hardware):
         :rtype: DataWithIndex
         """
 
-        self.out = DataWithIndex(data, index=self.counter)
+        self.out = DataWithIndex(data, index=self.counter, valid=True)
 
         next_counter = self.counter + 1
         if next_counter >= self.PACKET_SIZE:

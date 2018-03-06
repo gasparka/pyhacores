@@ -77,6 +77,7 @@ class R2SDF(Hardware):
         # self.stage4 = StageR2SDF(4)
         # self.stage2 = StageR2SDF(2)
 
+        # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
         self.DELAY = (fft_size - 1) + 1 # +1 is output register
 
@@ -104,8 +105,7 @@ class R2SDF(Hardware):
         return self.out
 
     def model_main(self, x):
-        from scipy.fftpack import fft
-        ffts = fft(x)
+        ffts = np.fft.fft(x)
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
         # from under_construction.fft.bit_reversal import bit_reversed_indexes
@@ -120,7 +120,7 @@ class R2SDF(Hardware):
             ffts[i] = ffts[i][rev_index]
 
         # apply gain control (to avoid overflows in hardware)
-        ffts *= self.GAIN_CORRECTION
+        # ffts *= self.GAIN_CORRECTION
 
         return ffts
 
