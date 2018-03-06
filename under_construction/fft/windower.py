@@ -36,9 +36,9 @@ def test_windower(M):
     inp = np.random.uniform(-1, 1, size=(2, M)) + np.random.uniform(-1, 1, size=(2, M)) * 1j
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
+                                           'RTL'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack)
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack)
 
     assert sims_close(sims, rtol=1e-2)

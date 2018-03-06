@@ -42,10 +42,10 @@ def test_avgdecimate(M):
     inp = np.random.uniform(-1, 1, size=(packages, 1024))
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
+                                           'RTL'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack)
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack)
     assert sims_close(sims)
 
 
@@ -55,8 +55,8 @@ def test_simple():
     inp = [[0.5, 0.5, 0.2, 0.1, 0.9, 0.8], [0.5, 0.5, 0.2, 0.1, 0.6, 0.7]]
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
+                                           'RTL'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack)
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack)
     assert sims_close(sims)

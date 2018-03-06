@@ -80,11 +80,11 @@ def test_bit_reversal(N, fftshift):
 
     dut = BitReversal(N, fftshift)
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL',
+                                           'RTL',
                                            # 'GATE'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack)
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack)
     assert sims_close(sims)
 
 
@@ -98,7 +98,7 @@ def test_simple():
                                            # 'RTL',
                                            # 'GATE'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack
                     )
     assert sims_close(sims)

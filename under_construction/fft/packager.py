@@ -10,7 +10,7 @@ class DataWithIndex(Hardware):
         self.valid = valid
 
     @staticmethod
-    def unpack(data):
+    def _pyha_unpack(data):
         ret = []
         sublist = []
         for elem in data:
@@ -28,7 +28,7 @@ class DataWithIndex(Hardware):
         return ret
 
     @staticmethod
-    def pack(data):
+    def _pyha_pack(data):
         ret = []
         for row in data:
             ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
@@ -72,7 +72,7 @@ def test_packager(M):
     packets = np.random.randint(1, 4)
     inp = np.random.uniform(-1, 1, M * packets) + np.random.uniform(-1, 1, M * packets) * 1j
 
-    sims = simulate(dut, inp, output_callback=DataWithIndex.unpack, simulations=['MODEL', 'PYHA',
-                                                                                 # 'RTL'
-                                                                                 ])
+    sims = simulate(dut, inp, output_callback=DataWithIndex._pyha_unpack, simulations=['MODEL', 'PYHA',
+                                                                                       'RTL'
+                                                                                       ])
     assert sims_close(sims, rtol=1e-2)

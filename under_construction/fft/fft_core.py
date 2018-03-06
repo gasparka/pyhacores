@@ -5,7 +5,7 @@ from scipy import signal
 
 import pytest
 from data import load_iq
-from pyha import Hardware, simulate, sims_close, Complex, resize
+from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
 from under_construction.fft.packager import DataWithIndex, Packager
@@ -26,32 +26,50 @@ class StageR2SDF(Hardware):
 
         self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
-    def main(self, x, control):
+        # self.coef = Complex()
+        # self.delay_shr = Complex()
+        # self.delay_x = Complex()
+        # self.delay_control = 0
 
-        up_real = resize(self.shr[-1].real + x.real, 0, -17)
-        up_imag = resize(self.shr[-1].imag + x.imag, 0, -17)
-
-        if self.FFT_HALF > 4:
-            up_real = up_real >> 1
-            up_imag = up_imag >> 1
-
+    def butterfly(self, in_up, in_down, twiddle):
+        up_real = resize(in_up.real + in_down.real, 0, -17)
+        up_imag = resize(in_up.imag + in_down.imag, 0, -17)
         up = Complex(up_real, up_imag)
-        # up = self.shr[-1] + x
 
         # down sub
-        down_sub_real = resize(self.shr[-1].real - x.real, 0, -17)
-        down_sub_imag = resize(self.shr[-1].imag - x.imag, 0, -17)
+        down_sub_real = resize(in_up.real - in_down.real, 0, -17)
+        down_sub_imag = resize(in_up.imag - in_down.imag, 0, -17)
 
-        twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
         down_real = resize((down_sub_real * twiddle.real) - (down_sub_imag * twiddle.imag), 0, -17)
         down_imag = resize((down_sub_real * twiddle.imag) + (down_sub_imag * twiddle.real), 0, -17)
-
-        if self.FFT_HALF > 4:
-            down_real = down_real >> 1
-            down_imag = down_imag >> 1
-
         down = Complex(down_real, down_imag)
-        # down = (self.shr[-1] - x) * self.TWIDDLES[control & self.control_mask]
+
+        return up, down
+
+    def main(self, x, control):
+        # self.coef = self.TWIDDLES[control & self.CONTROL_MASK]
+        # self.delay_shr = self.shr[-1]
+        # self.delay_x = x
+        # self.delay_control = control
+        #
+        # up, down = self.butterfly(self.delay_shr, self.delay_x, self.coef)
+        # if self.FFT_HALF > 4:
+        #     down = down >> 1
+        #     up = up >> 1
+        #
+        # if not (self.delay_control & self.FFT_HALF):
+        #     self.shr = [self.delay_x] + self.shr[:-1]
+        #     return self.delay_shr
+        # else:
+        #     self.shr = [down] + self.shr[:-1]
+        #     return up
+
+        up, down = self.butterfly(self.shr[-1], x, self.TWIDDLES[control & self.CONTROL_MASK])
+        if self.FFT_HALF > 4:
+            down.real = down.real >> 1
+            down.imag = down.imag >> 1
+            up.real = up.real >> 1
+            up.imag = up.imag >> 1
 
         if not (control & self.FFT_HALF):
             self.shr = [x] + self.shr[:-1]
@@ -66,40 +84,46 @@ class R2SDF(Hardware):
         self.FFT_SIZE = fft_size
 
         self.n_bits = int(np.log2(fft_size))
-        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
+        # self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
 
-        # self.stage256 = StageR2SDF(256)
-        # self.stage128 = StageR2SDF(128)
-        # self.stage64 = StageR2SDF(64)
-        # self.stage32 = StageR2SDF(32)
-        # self.stage16 = StageR2SDF(16)
-        # self.stage8 = StageR2SDF(8)
-        # self.stage4 = StageR2SDF(4)
-        # self.stage2 = StageR2SDF(2)
+        self.stage1024 = StageR2SDF(1024)
+        self.stage512 = StageR2SDF(512)
+        self.stage256 = StageR2SDF(256)
+        self.stage128 = StageR2SDF(128)
+        self.stage64 = StageR2SDF(64)
+        self.stage32 = StageR2SDF(32)
+        self.stage16 = StageR2SDF(16)
+        self.stage8 = StageR2SDF(8)
+        self.stage4 = StageR2SDF(4)
+        self.stage2 = StageR2SDF(2)
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
-        self.DELAY = (fft_size - 1) + 1 # +1 is output register
+        self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
 
     def main(self, x):
         # execute stages
-        # out = x.data
-        # out = self.stage256.main(out, c)
-        # out = self.stage128.main(out, c)
-        # out = self.stage64.main(out, c)
-        # out = self.stage32.main(out, c)
-        # out = self.stage16.main(out, c)
-        # out = self.stage8.main(out, c)
-        # out = self.stage4.main(out, c)
-        # out = self.stage2.main(out, c)
-
         out = x.data
-        for stage in self.stages:
-            out = stage.main(out, x.index)
+        out = self.stage1024.main(out, x.index)
+        out = self.stage512.main(out, x.index)
+        out = self.stage256.main(out, x.index)
+        out = self.stage128.main(out, x.index)
+        out = self.stage64.main(out, x.index)
+        out = self.stage32.main(out, x.index)
+        out = self.stage16.main(out, x.index)
+        out = self.stage8.main(out, x.index)
+        out = self.stage4.main(out, x.index)
+        out = self.stage2.main(out, x.index)
 
-        new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
+        new_index = (x.index + self.DELAY + 1) # BUGG
+
+        # out = x.data
+        # for stage in self.stages:
+        #     out = stage.main(out, x.index)
+        #
+        # new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
         self.out.data = out
         self.out.index = new_index
         return self.out
@@ -127,15 +151,18 @@ class R2SDF(Hardware):
 
 @pytest.mark.parametrize("fft_size", [4, 8, 16, 32, 64, 128, 256])
 def test_fft(fft_size):
+    fft_size = 256
+    np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
+                                           'GATE'
                                            ],
-                    output_callback=DataWithIndex.unpack,
-                    input_callback=DataWithIndex.pack)
+                    conversion_path='/home/gaspar/git/pyhacores/playground',
+                    output_callback=DataWithIndex._pyha_unpack,
+                    input_callback=DataWithIndex._pyha_pack)
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 

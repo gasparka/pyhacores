@@ -62,7 +62,7 @@ def test_simple():
     inp *= 0.25
 
     sims = simulate(dut, inp,
-                    output_callback=DataWithIndex.unpack,
+                    output_callback=DataWithIndex._pyha_unpack,
                     simulations=['MODEL', 'PYHA',
                                                                                  # 'RTL'
                                                                                  ])
