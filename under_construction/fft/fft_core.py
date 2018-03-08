@@ -65,20 +65,20 @@ class R2SDF(Hardware):
         self.FFT_SIZE = fft_size
 
         self.n_bits = int(np.log2(fft_size))
-        # self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
+        self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
         #
         # self.stage4000 = StageR2SDF(1024*4)
         # self.stage2000 = StageR2SDF(1024*2)
-        self.stage1024 = StageR2SDF(1024)
-        self.stage512 = StageR2SDF(512)
-        self.stage256 = StageR2SDF(256)
-        self.stage128 = StageR2SDF(128)
-        self.stage64 = StageR2SDF(64)
-        self.stage32 = StageR2SDF(32)
-        self.stage16 = StageR2SDF(16)
-        self.stage8 = StageR2SDF(8)
-        self.stage4 = StageR2SDF(4)
-        self.stage2 = StageR2SDF(2)
+        # self.stage1024 = StageR2SDF(1024)
+        # self.stage512 = StageR2SDF(512)
+        # self.stage256 = StageR2SDF(256)
+        # self.stage128 = StageR2SDF(128)
+        # self.stage64 = StageR2SDF(64)
+        # self.stage32 = StageR2SDF(32)
+        # self.stage16 = StageR2SDF(16)
+        # self.stage8 = StageR2SDF(8)
+        # self.stage4 = StageR2SDF(4)
+        # self.stage2 = StageR2SDF(2)
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
@@ -91,24 +91,24 @@ class R2SDF(Hardware):
         out = x.data
         # out = self.stage4000.main(out, x.index)
         # out = self.stage2000.main(out, x.index)
-        out = self.stage1024.main(out, x.index)
-        out = self.stage512.main(out, x.index)
-        out = self.stage256.main(out, x.index)
-        out = self.stage128.main(out, x.index)
-        out = self.stage64.main(out, x.index)
-        out = self.stage32.main(out, x.index)
-        out = self.stage16.main(out, x.index)
-        out = self.stage8.main(out, x.index)
-        out = self.stage4.main(out, x.index)
-        out = self.stage2.main(out, x.index)
+        # out = self.stage1024.main(out, x.index)
+        # out = self.stage512.main(out, x.index)
+        # out = self.stage256.main(out, x.index)
+        # out = self.stage128.main(out, x.index)
+        # out = self.stage64.main(out, x.index)
+        # out = self.stage32.main(out, x.index)
+        # out = self.stage16.main(out, x.index)
+        # out = self.stage8.main(out, x.index)
+        # out = self.stage4.main(out, x.index)
+        # out = self.stage2.main(out, x.index)
 
-        new_index = (x.index + self.DELAY + 1) # BUGG
+        # new_index = (x.index + self.DELAY + 1) # BUGG
 
-        # out = x.data
-        # for stage in self.stages:
-        #     out = stage.main(out, x.index)
-        #
-        # new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
+        out = x.data
+        for stage in self.stages:
+            out = stage.main(out, x.index)
+
+        new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
         self.out.data = out
         self.out.index = new_index
         self.out.valid = x.valid
@@ -137,15 +137,14 @@ class R2SDF(Hardware):
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256])
 def test_fft(fft_size):
-    fft_size = 1024
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
-                                           'GATE'
+                                           'RTL'
+                                           # 'GATE'
                                            ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=DataWithIndex._pyha_unpack,
