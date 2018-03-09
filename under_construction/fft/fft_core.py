@@ -1,14 +1,8 @@
 import timeit
-
-from pyha.common.stream import Stream
-from scipy import signal
-
 import pytest
-from data import load_iq
-from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
+from pyha import Hardware, simulate, sims_close, Complex, resize
 import numpy as np
-
-from under_construction.fft.packager import DataWithIndex, Packager
+from under_construction.fft.packager import DataWithIndex
 
 
 def W(k, N):
@@ -24,9 +18,11 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = [Complex() for _ in range(self.FFT_HALF)]
 
-        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
 
-        self.twiddle_buffer = Complex()
+        self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
+
+        # self.twiddle_buffer = Complex()
 
     def butterfly(self, in_up, in_down, twiddle):
         up_real = resize(in_up.real + in_down.real, 0, -17)
@@ -43,8 +39,9 @@ class StageR2SDF(Hardware):
         return up, down
 
     def main(self, x, control):
-        self.twiddle_buffer = self.TWIDDLES[(control + 1) & self.CONTROL_MASK]
-        up, down = self.butterfly(self.shr[-1], x, self.twiddle_buffer)
+        # self.twiddle_buffer = self.TWIDDLES[(control + 1) & self.CONTROL_MASK]
+        # up, down = self.butterfly(self.shr[-1], x, self.twiddle_buffer)
+        up, down = self.butterfly(self.shr[-1], x, self.TWIDDLES[control & self.CONTROL_MASK])
 
         if self.FFT_HALF > 4:
             down.real = down.real >> 1
@@ -66,19 +63,6 @@ class R2SDF(Hardware):
 
         self.n_bits = int(np.log2(fft_size))
         self.stages = [StageR2SDF(2 ** (pow + 1)) for pow in reversed(range(self.n_bits))]
-        #
-        # self.stage4000 = StageR2SDF(1024*4)
-        # self.stage2000 = StageR2SDF(1024*2)
-        # self.stage1024 = StageR2SDF(1024)
-        # self.stage512 = StageR2SDF(512)
-        # self.stage256 = StageR2SDF(256)
-        # self.stage128 = StageR2SDF(128)
-        # self.stage64 = StageR2SDF(64)
-        # self.stage32 = StageR2SDF(32)
-        # self.stage16 = StageR2SDF(16)
-        # self.stage8 = StageR2SDF(8)
-        # self.stage4 = StageR2SDF(4)
-        # self.stage2 = StageR2SDF(2)
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
@@ -89,28 +73,11 @@ class R2SDF(Hardware):
     def main(self, x):
         # #execute stages
         out = x.data
-        # out = self.stage4000.main(out, x.index)
-        # out = self.stage2000.main(out, x.index)
-        # out = self.stage1024.main(out, x.index)
-        # out = self.stage512.main(out, x.index)
-        # out = self.stage256.main(out, x.index)
-        # out = self.stage128.main(out, x.index)
-        # out = self.stage64.main(out, x.index)
-        # out = self.stage32.main(out, x.index)
-        # out = self.stage16.main(out, x.index)
-        # out = self.stage8.main(out, x.index)
-        # out = self.stage4.main(out, x.index)
-        # out = self.stage2.main(out, x.index)
-
-        # new_index = (x.index + self.DELAY + 1) # BUGG
-
-        out = x.data
         for stage in self.stages:
             out = stage.main(out, x.index)
 
-        new_index = (x.index + self.DELAY + 1) % self.FFT_SIZE
         self.out.data = out
-        self.out.index = new_index
+        self.out.index = (x.index + self.DELAY + 1) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
@@ -143,8 +110,8 @@ def test_fft(fft_size):
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           'RTL'
-                                           # 'GATE'
+                                           'RTL',
+                                           'GATE'
                                            ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=DataWithIndex._pyha_unpack,
@@ -152,13 +119,12 @@ def test_fft(fft_size):
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
-
 def test_simple():
     fft_size = 2
     np.random.seed(0)
     dut = R2SDF(fft_size)
 
-    inp = np.array([0+0.123j, 1+0.123j]).astype(complex) * 0.1
+    inp = np.array([0 + 0.123j, 1 + 0.123j]).astype(complex) * 0.1
     inp = [inp, inp]
     # inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
     # inp *= 0.1
