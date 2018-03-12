@@ -9,31 +9,38 @@ class DataWithIndex(Hardware):
         self.index = index
         self.valid = valid
 
-    @staticmethod
-    def _pyha_unpack(data):
-        ret = []
-        sublist = []
-        for elem in data:
-            if not elem.valid:
-                continue
 
-            if int(elem.index) == 0:
-                if len(sublist):
-                    ret.append(sublist)
-                sublist = [elem.data]
-            else:
-                sublist.append(elem.data)
+def package(data):
+    ret = []
+    index_bits = np.log2(len(data[0]))
+    for row in data:
+        ret += [DataWithIndex(elem, Sfix(float(i), index_bits, 0, signed=False)) for i, elem in enumerate(row)]
 
-        ret.append(sublist)
-        return ret
+    return ret
 
-    @staticmethod
-    def _pyha_pack(data):
-        ret = []
-        for row in data:
-            ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
+    ret = []
+    for row in data:
+        ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
 
-        return ret
+    return ret
+
+
+def unpackage(data):
+    ret = []
+    sublist = []
+    for elem in data:
+        if not elem.valid:
+            continue
+
+        if int(elem.index) == 0:
+            if len(sublist):
+                ret.append(sublist)
+            sublist = [elem.data]
+        else:
+            sublist.append(elem.data)
+
+    ret.append(sublist)
+    return ret
 
 
 class Packager(Hardware):
@@ -71,7 +78,7 @@ def test_packager(M):
     inp = np.random.uniform(-1, 1, M * packets) + np.random.uniform(-1, 1, M * packets) * 1j
 
     sims = simulate(dut, inp,
-                    output_callback=DataWithIndex._pyha_unpack,
+                    output_callback=unpackage,
                     simulations=['MODEL', 'PYHA',
                                                                                        'RTL',
                                                                                        # 'GATE'

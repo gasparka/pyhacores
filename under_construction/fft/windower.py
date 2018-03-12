@@ -42,7 +42,7 @@ def test_windower(M):
                                            'GATE'
                                            ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
-                    output_callback=DataWithIndex._pyha_unpack,
-                    input_callback=DataWithIndex._pyha_pack)
+                    output_callback=unpackage,
+                    input_callback=package)
 
     assert sims_close(sims, rtol=1e-2)

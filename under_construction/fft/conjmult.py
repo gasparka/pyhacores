@@ -32,5 +32,5 @@ def test_abs():
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
                                            # 'RTL'
-                                           ], output_callback=DataWithIndex._pyha_unpack, input_callback=DataWithIndex._pyha_pack)
+                                           ], output_callback=unpackage, input_callback=package)
     assert sims_close(sims)

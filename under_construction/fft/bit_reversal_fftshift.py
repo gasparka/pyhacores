@@ -83,8 +83,8 @@ def test_bit_reversal(N, fftshift):
                                            'RTL',
                                            # 'GATE'
                                            ],
-                    output_callback=DataWithIndex._pyha_unpack,
-                    input_callback=DataWithIndex._pyha_pack)
+                    output_callback=unpackage,
+                    input_callback=package)
     assert sims_close(sims)
 
 
@@ -98,7 +98,7 @@ def test_simple():
                                            # 'RTL',
                                            # 'GATE'
                                            ],
-                    output_callback=DataWithIndex._pyha_unpack,
-                    input_callback=DataWithIndex._pyha_pack
+                    output_callback=unpackage,
+                    input_callback=package
                     )
     assert sims_close(sims)
