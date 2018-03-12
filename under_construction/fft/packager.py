@@ -11,12 +11,12 @@ class DataWithIndex(Hardware):
 
 
 def package(data):
-    ret = []
-    index_bits = np.log2(len(data[0]))
-    for row in data:
-        ret += [DataWithIndex(elem, Sfix(float(i), index_bits, 0, signed=False)) for i, elem in enumerate(row)]
-
-    return ret
+    # ret = []
+    # index_bits = np.log2(len(data[0]))
+    # for row in data:
+    #     ret += [DataWithIndex(elem, Sfix(float(i), index_bits, 0, signed=False)) for i, elem in enumerate(row)]
+    #
+    # return ret
 
     ret = []
     for row in data:
