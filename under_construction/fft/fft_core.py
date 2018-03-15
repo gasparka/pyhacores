@@ -1,6 +1,6 @@
 import timeit
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex, resize
+from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
 from pyha.common.shift_register import ShiftRegister
@@ -12,7 +12,6 @@ def W(k, N):
     """ e^-j*2*PI*k*n/N, argument k = k * n """
     return np.exp(-1j * (2 * np.pi / N) * k)
 
-
 class StageR2SDF(Hardware):
     def __init__(self, fft_size):
         self.FFT_SIZE = fft_size
@@ -21,9 +20,13 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
-        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES_REAL = [Sfix(W(i, self.FFT_SIZE).real, 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES_IMAG = [Sfix(W(i, self.FFT_SIZE).imag, 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
 
-        self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
+
+
+        # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
         up_real = resize(in_up.real + in_down.real, 0, -17)
@@ -40,18 +43,20 @@ class StageR2SDF(Hardware):
         return up, down
 
     def main(self, x, control):
-        up, down = self.butterfly(self.shr.peek(), x, self.TWIDDLES[control & self.CONTROL_MASK])
-
-        if self.FFT_HALF > 4:
-            down.real = down.real >> 1
-            down.imag = down.imag >> 1
-            up.real = up.real >> 1
-            up.imag = up.imag >> 1
-
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
             return self.shr.peek()
         else:
+            twid = Complex(self.TWIDDLES_REAL[control & self.CONTROL_MASK], self.TWIDDLES_IMAG[control & self.CONTROL_MASK])
+            up, down = self.butterfly(self.shr.peek(), x, twid)
+            # up, down = self.butterfly(self.shr.peek(), x, self.TWIDDLES[control & self.CONTROL_MASK])
+
+            if self.FFT_HALF > 4:
+                down.real = down.real >> 1
+                down.imag = down.imag >> 1
+                up.real = up.real >> 1
+                up.imag = up.imag >> 1
+
             self.shr.push_next(down)
             return up
 
@@ -101,8 +106,9 @@ class R2SDF(Hardware):
         return ffts
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024*2, 1024*4, 1024*8])
 def test_fft(fft_size):
+    fft_size = 1024
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
@@ -110,7 +116,7 @@ def test_fft(fft_size):
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
                                            # 'RTL',
-                                           # 'GATE'
+                                           'GATE'
                                            ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
