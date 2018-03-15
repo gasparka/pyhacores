@@ -3,6 +3,7 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, resize
 import numpy as np
 
+from pyha.common.shift_register import ShiftRegister
 from pyha.conversion.conversion import get_conversion, get_objects_rednode
 from under_construction.fft.packager import DataWithIndex, unpackage, package
 
@@ -18,13 +19,11 @@ class StageR2SDF(Hardware):
         self.FFT_HALF = fft_size // 2
 
         self.CONTROL_MASK = (self.FFT_HALF - 1)
-        self.shr = [Complex() for _ in range(self.FFT_HALF)]
+        self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
         # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
 
         self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
-
-        # self.twiddle_buffer = Complex()
 
     def butterfly(self, in_up, in_down, twiddle):
         up_real = resize(in_up.real + in_down.real, 0, -17)
@@ -41,7 +40,7 @@ class StageR2SDF(Hardware):
         return up, down
 
     def main(self, x, control):
-        up, down = self.butterfly(self.shr[-1], x, self.TWIDDLES[control & self.CONTROL_MASK])
+        up, down = self.butterfly(self.shr.peek(), x, self.TWIDDLES[control & self.CONTROL_MASK])
 
         if self.FFT_HALF > 4:
             down.real = down.real >> 1
@@ -50,10 +49,10 @@ class StageR2SDF(Hardware):
             up.imag = up.imag >> 1
 
         if not (control & self.FFT_HALF):
-            self.shr = [x] + self.shr[:-1]
-            return self.shr[-1]
+            self.shr.push_next(x)
+            return self.shr.peek()
         else:
-            self.shr = [down] + self.shr[:-1]
+            self.shr.push_next(down)
             return up
 
 
@@ -102,12 +101,7 @@ class R2SDF(Hardware):
         return ffts
 
 
-def test_wtf():
-    dut = StageR2SDF(64)
-    red = get_objects_rednode(dut)
-    pass
-
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512])
 def test_fft(fft_size):
     np.random.seed(0)
     dut = R2SDF(fft_size)
