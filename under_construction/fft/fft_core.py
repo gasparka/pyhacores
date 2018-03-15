@@ -139,15 +139,33 @@ def test_simple():
 
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
-    print(timeit.timeit('import pyha; pyha.Complex()'))
-    print(timeit.timeit('from pyha.simulation.simulation_interface import simulate'))
+    fft_size = 512
+    np.random.seed(0)
+    dut = R2SDF(fft_size)
+    inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
+    inp *= 0.25
 
-    # fft_size = 256
-    # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    sims = simulate(dut, inp, simulations=[
+        # 'MODEL',
+                                           'PYHA',
+                                           # 'RTL',
+                                           # 'GATE'
+                                           ],
+                    conversion_path='/home/gaspar/git/pyhacores/playground',
+                    output_callback=unpackage,
+                    input_callback=package)
+    # assert sims_close(sims, rtol=1e-1, atol=1e-4)
+
+
+    # print(timeit.timeit('import pyha; pyha.Complex()'))
+    # print(timeit.timeit('from pyha.simulation.simulation_interface import simulate'))
     #
-    # dut = R2SDF(fft_size)
-    # sims = simulate(dut, inp, simulations=['PYHA'])
-    # # assert sims_close(sims, rtol=1e-2)
-    #
-    # #python -m plop.collector -f flamegraph fft_core.py
-    # # ./git/FlameGraph/flamegraph.pl --width 5000 x.flame > flame.svg
+    # # fft_size = 256
+    # # inp = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    # #
+    # # dut = R2SDF(fft_size)
+    # # sims = simulate(dut, inp, simulations=['PYHA'])
+    # # # assert sims_close(sims, rtol=1e-2)
+    # #
+    # # #python -m plop.collector -f flamegraph fft_core.py
+    # # # ./git/FlameGraph/flamegraph.pl --width 5000 x.flame > flame.svg
