@@ -14,6 +14,7 @@ def W(k, N):
     """ e^-j*2*PI*k*n/N, argument k = k * n """
     return np.exp(-1j * (2 * np.pi / N) * k)
 
+
 class StageR2SDF(Hardware):
     def __init__(self, fft_size):
         self.FFT_SIZE = fft_size
@@ -23,8 +24,6 @@ class StageR2SDF(Hardware):
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
         # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
-
-
 
         self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
@@ -106,7 +105,7 @@ class R2SDF(Hardware):
         return ffts
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024*2, 1024*4, 1024*8])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024 * 2, 1024 * 4, 1024 * 8])
 def test_fft(fft_size):
     np.random.seed(0)
     dut = R2SDF(fft_size)
@@ -114,11 +113,11 @@ def test_fft(fft_size):
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=[
-                                            'MODEL',
-                                           'PYHA',
-                                           # 'RTL',
-                                           # 'GATE'
-                                           ],
+        'MODEL',
+        'PYHA',
+        # 'RTL',
+        # 'GATE'
+    ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
                     input_callback=package)
@@ -171,10 +170,10 @@ if __name__ == '__main__':
 
     sims = simulate(dut, inp, simulations=[
         # 'MODEL',
-                                           'PYHA',
-                                           # 'RTL',
-                                           # 'GATE'
-                                           ],
+        'PYHA',
+        # 'RTL',
+        # 'GATE'
+    ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
                     input_callback=package)
@@ -183,7 +182,6 @@ if __name__ == '__main__':
     # Conversion(mod)
     # vhdl_sim = VHDLSimulation(Path(conversion_path), fix_model, 'RTL')
     # assert sims_close(sims, rtol=1e-1, atol=1e-4)
-
 
     # print(timeit.timeit('import pyha; pyha.Complex()'))
     # print(timeit.timeit('from pyha.simulation.simulation_interface import simulate'))
