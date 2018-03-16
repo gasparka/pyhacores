@@ -4,7 +4,9 @@ from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
 from pyha.common.shift_register import ShiftRegister
-from pyha.conversion.conversion import get_conversion, get_objects_rednode
+from pyha.conversion.conversion import get_conversion, get_objects_rednode, Conversion
+from pyha.simulation.simulation_interface import get_last_trained_object
+from pyha.simulation.vhdl_simulation import VHDLSimulation
 from under_construction.fft.packager import DataWithIndex, unpackage, package
 
 
@@ -21,12 +23,10 @@ class StageR2SDF(Hardware):
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
         # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
-        self.TWIDDLES_REAL = [Sfix(W(i, self.FFT_SIZE).real, 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
-        self.TWIDDLES_IMAG = [Sfix(W(i, self.FFT_SIZE).imag, 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
 
 
 
-        # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
         up_real = resize(in_up.real + in_down.real, 0, -17)
@@ -47,7 +47,7 @@ class StageR2SDF(Hardware):
             self.shr.push_next(x)
             return self.shr.peek()
         else:
-            twid = Complex(self.TWIDDLES_REAL[control & self.CONTROL_MASK], self.TWIDDLES_IMAG[control & self.CONTROL_MASK])
+            twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
             # up, down = self.butterfly(self.shr.peek(), x, self.TWIDDLES[control & self.CONTROL_MASK])
 
@@ -108,10 +108,28 @@ class R2SDF(Hardware):
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024*2, 1024*4, 1024*8])
 def test_fft(fft_size):
-    fft_size = 1024
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
+    inp *= 0.25
+
+    sims = simulate(dut, inp, simulations=[
+                                            'MODEL',
+                                           'PYHA',
+                                           # 'RTL',
+                                           # 'GATE'
+                                           ],
+                    conversion_path='/home/gaspar/git/pyhacores/playground',
+                    output_callback=unpackage,
+                    input_callback=package)
+    assert sims_close(sims, rtol=1e-1, atol=1e-4)
+
+
+def test_synth():
+    fft_size = 1024 * 2 * 2
+    np.random.seed(0)
+    dut = R2SDF(fft_size)
+    inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
@@ -145,10 +163,10 @@ def test_simple():
 
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
-    fft_size = 512
+    fft_size = 1024
     np.random.seed(0)
     dut = R2SDF(fft_size)
-    inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
+    inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=[
@@ -160,6 +178,10 @@ if __name__ == '__main__':
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
                     input_callback=package)
+
+    # mod = get_last_trained_object()
+    # Conversion(mod)
+    # vhdl_sim = VHDLSimulation(Path(conversion_path), fix_model, 'RTL')
     # assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
