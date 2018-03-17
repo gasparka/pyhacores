@@ -1,5 +1,7 @@
 import timeit
 import pytest
+from numba import jit
+
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
