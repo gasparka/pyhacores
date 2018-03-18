@@ -30,17 +30,10 @@ class StageR2SDF(Hardware):
         self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
-        up_real = resize(in_up.real + in_down.real, 0, -17)
-        up_imag = resize(in_up.imag + in_down.imag, 0, -17)
-        up = Complex(up_real, up_imag)
+        up = resize(in_up + in_down, 0, -17) # make 0, -17 default? 
 
-        # down sub
-        down_sub_real = resize(in_up.real - in_down.real, 0, -17)
-        down_sub_imag = resize(in_up.imag - in_down.imag, 0, -17)
-
-        down_real = resize((down_sub_real * twiddle.real) - (down_sub_imag * twiddle.imag), 0, -17)
-        down_imag = resize((down_sub_real * twiddle.imag) + (down_sub_imag * twiddle.real), 0, -17)
-        down = Complex(down_real, down_imag)
+        down_part = resize(in_up - in_down, 0, -17)
+        down = resize(down_part * twiddle, 0, -17)
         return up, down
 
     def main(self, x, control):
@@ -50,13 +43,10 @@ class StageR2SDF(Hardware):
         else:
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
-            # up, down = self.butterfly(self.shr.peek(), x, self.TWIDDLES[control & self.CONTROL_MASK])
 
             if self.FFT_HALF > 4:
-                down.real = down.real >> 1
-                down.imag = down.imag >> 1
-                up.real = up.real >> 1
-                up.imag = up.imag >> 1
+                down >>= 1
+                up >>= 1
 
             self.shr.push_next(down)
             return up
