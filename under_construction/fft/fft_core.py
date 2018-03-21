@@ -1,7 +1,5 @@
 import timeit
 import pytest
-from numba import jit
-
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
@@ -107,7 +105,7 @@ def test_fft(fft_size):
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        # 'RTL',
+        'RTL',
         # 'GATE'
     ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
