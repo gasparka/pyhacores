@@ -29,9 +29,7 @@ class NCO(Hardware):
 
         x, y, phase = self.cordic.main(start_x, start_y, self.phase_acc)
 
-        self.out.real = x
-        self.out.imag = y
-
+        self.out = Complex(x, y)
         return self.out
 
     def model_main(self, phase_list):
