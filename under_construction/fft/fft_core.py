@@ -97,6 +97,7 @@ class R2SDF(Hardware):
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024 * 2, 1024 * 4, 1024 * 8])
 def test_fft(fft_size):
+    fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
@@ -105,8 +106,8 @@ def test_fft(fft_size):
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        'RTL',
-        # 'GATE'
+        # 'RTL',
+        'GATE'
     ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
@@ -115,7 +116,7 @@ def test_fft(fft_size):
 
 
 def test_synth():
-    fft_size = 1024 * 2 * 2
+    fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
