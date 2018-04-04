@@ -19,8 +19,11 @@ def package(data):
     # return ret
 
     ret = []
-    for row in data:
-        ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
+    if isinstance(data[0], list):
+        for row in data:
+            ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
+    else:
+        ret += [DataWithIndex(elem, i) for i, elem in enumerate(data)]
 
     return ret
 
