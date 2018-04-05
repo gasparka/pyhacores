@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix, right_index, left_index
-from under_construction.fft.packager import DataWithIndex
+from under_construction.fft.packager import DataWithIndex, unpackage, package
 
 
 class ConjMult(Hardware):
@@ -31,6 +31,6 @@ def test_abs():
     inp *= 0.5
 
     sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL'
+                                           'RTL'
                                            ], output_callback=unpackage, input_callback=package)
     assert sims_close(sims)
