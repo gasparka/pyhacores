@@ -51,10 +51,7 @@ class Packager(Hardware):
         self.PACKET_SIZE = packet_size
         self.DELAY = 1
 
-        self.out = DataWithIndex(Complex(),
-                                 index=Sfix(self.PACKET_SIZE-1, np.log2(self.PACKET_SIZE), 0, signed=False),
-                                 valid=True
-                                 )
+        self.out = DataWithIndex(Complex(), index=self.PACKET_SIZE-1)
 
     def main(self, data):
         """
