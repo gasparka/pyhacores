@@ -37,12 +37,14 @@ class BitreversalFFTshiftDecimate(Hardware):
             self.mem0[write_index] += inp.data
             if inp.index < self.FFT_SIZE / self.DECIMATION:
                 self.out = DataWithIndex(self.mem1[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
+                self.mem1[inp.index] = 0.0
             else:
                 self.out.valid = False
         else:
             self.mem1[write_index] += inp.data
             if inp.index < self.FFT_SIZE / self.DECIMATION:
                 self.out = DataWithIndex(self.mem0[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
+                self.mem0[inp.index] = 0.0
             else:
                 self.out.valid = False
 
@@ -53,28 +55,24 @@ class BitreversalFFTshiftDecimate(Hardware):
 
     def model_main(self, x):
         rev_index = bit_reversed_indexes(self.FFT_SIZE)
-
-        unrev = x.copy()
-        for i, row in enumerate(x):
-            unrev[i] = row[rev_index]
-
+        unrev = x[:, rev_index]
         unshift = np.fft.fftshift(unrev, axes=1)
-        avg = np.reshape(unshift, (-1, self.DECIMATION))
-        avg = np.mean(avg, axis=1)
-        return [avg]
+        avg = np.reshape(unshift, (len(x), self.FFT_SIZE//self.DECIMATION, self.DECIMATION))
+        avg = np.mean(avg, axis=2)
+        return avg
 
 
 @pytest.mark.parametrize("decimation", [2, 4, 8])
-@pytest.mark.parametrize("fft_size", [512, 256, 128, 64, 32])
-def test_basic(fft_size, decimation):
-    # fft_size = 64
-    # decimation = 2
+@pytest.mark.parametrize("fft_size", [256, 128, 64, 32])
+@pytest.mark.parametrize("packets", [4, 3, 2, 1])
+def test_basic(fft_size, decimation, packets):
     orig_inp = np.array(list(range(fft_size))) / 1000
+    orig_inp = [orig_inp] * packets
 
     rev_index = bit_reversed_indexes(fft_size)
-    shift = np.fft.fftshift(orig_inp)
-    input = shift[rev_index]
-    input = [input]
+    shift = np.fft.fftshift(orig_inp, axes=1)
+    input = shift[:, rev_index]
+
     dut = BitreversalFFTshiftDecimate(fft_size, decimation)
 
     sims = simulate(dut, input, simulations=['MODEL',
