@@ -1,4 +1,6 @@
-from pyha import Hardware, simulate, sims_close
+import pytest
+
+from pyha import Hardware, simulate, sims_close, Sfix
 import numpy as np
 from pyha.simulation.simulation_interface import get_last_trained_object
 from under_construction.fft.bit_reversal_fftshift import bit_reversed_indexes
@@ -16,13 +18,15 @@ def build_lut(fft_size, decimation):
 
 class BitreversalFFTshiftDecimate(Hardware):
     def __init__(self, fft_size, decimation):
+        assert decimation > 1
         self.DECIMATION = decimation
+        self.DECIMATION_BITS = int(np.log2(decimation))
         self.FFT_SIZE = fft_size
         self.LUT = build_lut(fft_size, decimation)
 
         self.state = False
-        self.mem0 = [0.0] * (fft_size // decimation)
-        self.mem1 = [0.0] * (fft_size // decimation)
+        self.mem0 = [Sfix(0.0, np.log2(decimation), -17)] * (fft_size // decimation)
+        self.mem1 = [Sfix(0.0, np.log2(decimation), -17)] * (fft_size // decimation)
         self.out = DataWithIndex(0.0, 0)
         self.DELAY = fft_size + 1
 
@@ -32,13 +36,13 @@ class BitreversalFFTshiftDecimate(Hardware):
         if self.state:
             self.mem0[write_index] += inp.data
             if inp.index < self.FFT_SIZE / self.DECIMATION:
-                self.out = DataWithIndex(self.mem1[inp.index], index=inp.index, valid=True)
+                self.out = DataWithIndex(self.mem1[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
             else:
                 self.out.valid = False
         else:
             self.mem1[write_index] += inp.data
             if inp.index < self.FFT_SIZE / self.DECIMATION:
-                self.out = DataWithIndex(self.mem0[inp.index], index=inp.index, valid=True)
+                self.out = DataWithIndex(self.mem0[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
             else:
                 self.out.valid = False
 
@@ -60,19 +64,23 @@ class BitreversalFFTshiftDecimate(Hardware):
         return [avg]
 
 
-def test_basic():
-    fft_size = 64
-    orig_inp = np.array(list(range(fft_size))) / 100
+@pytest.mark.parametrize("decimation", [2, 4, 8])
+@pytest.mark.parametrize("fft_size", [512, 256, 128, 64, 32])
+def test_basic(fft_size, decimation):
+    # fft_size = 64
+    # decimation = 2
+    orig_inp = np.array(list(range(fft_size))) / 1000
+
     rev_index = bit_reversed_indexes(fft_size)
     shift = np.fft.fftshift(orig_inp)
     input = shift[rev_index]
     input = [input]
-    dut = BitreversalFFTshiftDecimate(fft_size, decimation=1)
+    dut = BitreversalFFTshiftDecimate(fft_size, decimation)
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
                                              'RTL',
-                                             'GATE'
+                                             # 'GATE'
                                              ],
                     output_callback=unpackage,
                     input_callback=package,
@@ -80,4 +88,4 @@ def test_basic():
                     )
 
     mod = get_last_trained_object()
-    assert sims_close(sims, expected=[orig_inp])
+    assert sims_close(sims)
