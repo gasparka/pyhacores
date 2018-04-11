@@ -23,9 +23,8 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
-        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
-
-        self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
         up = resize(in_up + in_down, 0, -17) # make 0, -17 default? 
@@ -95,9 +94,23 @@ class R2SDF(Hardware):
         return ffts
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1024 * 2, 1024 * 4, 1024 * 8])
+# 9 bit (MAX)
+# MAX clk: 22MHz
+# Max Sine peak: ~56 dB
+# Total logic elements	8,677 / 15,840 ( 55 % )
+# Total registers	341
+# Total memory bits	293,976 / 562,176 ( 52 % )
+# Embedded Multiplier 9-bit elements	90 / 90 ( 100 % )
+
+# 8 bit
+# Total logic elements	6,424 / 39,600 ( 16 % )
+
+# 7 bit
+# Total logic elements	5,442
+
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
 def test_fft(fft_size):
-    fft_size = 1024 * 2 * 2 * 2
+    # fft_size = 1024 * 8
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j

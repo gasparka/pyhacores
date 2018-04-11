@@ -66,7 +66,10 @@ class BitreversalFFTshiftDecimate(Hardware):
 @pytest.mark.parametrize("fft_size", [256, 128, 64, 32])
 @pytest.mark.parametrize("packets", [4, 3, 2, 1])
 def test_basic(fft_size, decimation, packets):
-    orig_inp = np.array(list(range(fft_size))) / 1000
+    fft_size = 1024 * 8
+    decimation = 32
+    packets = 2
+    orig_inp = np.random.uniform(-1, 1, fft_size * packets)
     orig_inp = [orig_inp] * packets
 
     rev_index = bit_reversed_indexes(fft_size)
@@ -77,8 +80,8 @@ def test_basic(fft_size, decimation, packets):
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
-                                             'RTL',
-                                             # 'GATE'
+                                             # 'RTL',
+                                             'GATE'
                                              ],
                     output_callback=unpackage,
                     input_callback=package,
