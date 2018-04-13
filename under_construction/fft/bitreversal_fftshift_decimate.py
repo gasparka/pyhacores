@@ -1,6 +1,6 @@
 import pytest
 
-from pyha import Hardware, simulate, sims_close, Sfix
+from pyha import Hardware, simulate, sims_close, Sfix, resize
 import numpy as np
 
 from pyha.common.ram import RAM
@@ -29,36 +29,46 @@ class BitreversalFFTshiftDecimate(Hardware):
         self.state = True
         self.mem0 = RAM([Sfix(0.0, np.log2(decimation), -17)] * (fft_size // decimation))
         self.mem1 = RAM([Sfix(0.0, np.log2(decimation), -17)] * (fft_size // decimation))
-        self.out = DataWithIndex(0.0, 0)
-        self.inp_mem = DataWithIndex(0.0, 0)
+        self.out = DataWithIndex(Sfix(0.0, np.log2(decimation), -17), 0)
         self.DELAY = fft_size + 1
+        self.read = Sfix(0.0, np.log2(decimation), -17)
 
     def main(self, inp):
         write_index = self.LUT[inp.index]
         write_index_future = self.LUT[(inp.index + 1) % self.FFT_SIZE]
 
         if self.state:
-            read = self.mem0.delayed_read(write_index_future)
-            self.mem0.delayed_write(write_index, read + inp.data)
-            # self.mem0[write_index] += inp.data
+            self.read = self.mem0.delayed_read(write_index_future)
+            res = resize(self.read + inp.data, self.DECIMATION_BITS, -17)
+            self.mem0.delayed_write(write_index, res)
+
             if inp.index < self.FFT_SIZE / self.DECIMATION:
                 read = self.mem1.delayed_read(inp.index) >> self.DECIMATION_BITS
                 self.out = DataWithIndex(read, index=inp.index, valid=True)
-                self.mem1.delayed_write(inp.index, Sfix(0.0, 0, -17))
+                res = Sfix(0.0, self.DECIMATION_BITS, -17)
+                self.mem1.delayed_write(inp.index, res)
                 # self.out = DataWithIndex(self.mem1[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
                 # self.mem1[inp.index] = 0.0
             else:
                 self.out.valid = False
-        # else:
-        #     self.mem1[write_index] += inp.data
-        #     if inp.index < self.FFT_SIZE / self.DECIMATION:
-        #         self.out = DataWithIndex(self.mem0[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
-        #         self.mem0[inp.index] = 0.0
-        #     else:
-        #         self.out.valid = False
-        #
-        # if inp.index == self.FFT_SIZE - 1:
-        #     self.state = not self.state
+
+        else:
+            self.read = self.mem1.delayed_read(write_index_future)
+            res = resize(self.read + inp.data, self.DECIMATION_BITS, -17)
+            self.mem1.delayed_write(write_index, res)
+            if inp.index < self.FFT_SIZE / self.DECIMATION:
+                read = self.mem0.delayed_read(inp.index) >> self.DECIMATION_BITS
+                self.out = DataWithIndex(read, index=inp.index, valid=True)
+                res = Sfix(0.0, self.DECIMATION_BITS, -17)
+                self.mem0.delayed_write(inp.index, res)
+                # self.out = DataWithIndex(self.mem0[inp.index] >> self.DECIMATION_BITS, index=inp.index, valid=True)
+                # self.mem0[inp.index] = 0.0
+            else:
+                self.out.valid = False
+
+        if inp.index == self.FFT_SIZE - 1:
+            self.state = not self.state
+            self.read = Sfix(0.0, self.DECIMATION_BITS, -17)
 
         return self.out
 
@@ -72,10 +82,10 @@ class BitreversalFFTshiftDecimate(Hardware):
 
 
 def test_basicc():
-    fft_size = 64
-    decimation = 2
-    packets = 1
-    orig_inp = np.random.uniform(-1, 1, fft_size * packets)
+    fft_size = 128
+    decimation = 4
+    packets = 4
+    orig_inp = np.array(list(range(fft_size))) / 100
     orig_inp = [orig_inp] * packets
 
     rev_index = bit_reversed_indexes(fft_size)
@@ -86,8 +96,8 @@ def test_basicc():
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
-                                             # 'RTL',
-                                             # 'GATE'
+                                             'RTL',
+                                             'GATE'
                                              ],
                     output_callback=unpackage,
                     input_callback=package,
@@ -116,8 +126,8 @@ def test_basic(fft_size, decimation, packets):
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
-                                             # 'RTL',
-                                             'GATE'
+                                             'RTL',
+                                             # 'GATE'
                                              ],
                     output_callback=unpackage,
                     input_callback=package,
