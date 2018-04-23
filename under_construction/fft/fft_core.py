@@ -1,5 +1,7 @@
 import timeit
 import pytest
+from mpmath import mpc, mp
+
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
@@ -21,16 +23,22 @@ class StageR2SDF(Hardware):
         self.FFT_HALF = fft_size // 2
 
         self.CONTROL_MASK = (self.FFT_HALF - 1)
-        self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
+        # self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
+        self.shr = ShiftRegister([mpc() for _ in range(self.FFT_HALF)])
 
-        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        # print(mp)
+        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [mpc(W(i, self.FFT_SIZE)) for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
-        up = resize(in_up + in_down, 0, -17) # make 0, -17 default? 
+        # up = resize(in_up + in_down, 0, -17) # make 0, -17 default?
+        up = in_up + in_down
 
-        down_part = resize(in_up - in_down, 0, -17)
-        down = resize(down_part * twiddle, 0, -17)
+        # down_part = resize(in_up - in_down, 0, -17)
+        down_part = in_up - in_down
+        # down = resize(down_part * twiddle, 0, -17)
+        down = down_part * twiddle
         return up, down
 
     def main(self, x, control):
@@ -41,9 +49,9 @@ class StageR2SDF(Hardware):
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
 
-            if self.FFT_HALF > 4:
-                down >>= 1
-                up >>= 1
+            # if self.FFT_HALF > 4:
+            #     down >>= 1
+            #     up >>= 1
 
             self.shr.push_next(down)
             return up
@@ -60,7 +68,8 @@ class R2SDF(Hardware):
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
         self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
-        self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
+        # self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
+        self.out = DataWithIndex(mpc(0.0), 0)
 
     def main(self, x):
         # #execute stages
