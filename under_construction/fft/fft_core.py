@@ -1,10 +1,10 @@
 import timeit
 import pytest
-from mpmath import mpc, mp
 
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
+from pyha.common.float import Float, ComplexFloat
 from pyha.common.shift_register import ShiftRegister
 from pyha.conversion.conversion import get_conversion, get_objects_rednode, Conversion
 from pyha.simulation.simulation_interface import get_last_trained_object
@@ -24,11 +24,11 @@ class StageR2SDF(Hardware):
 
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         # self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
-        self.shr = ShiftRegister([mpc() for _ in range(self.FFT_HALF)])
+        self.shr = ShiftRegister([ComplexFloat() for _ in range(self.FFT_HALF)])
 
         # print(mp)
         # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
-        self.TWIDDLES = [mpc(W(i, self.FFT_SIZE)) for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [ComplexFloat(W(i, self.FFT_SIZE)) for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
@@ -69,7 +69,7 @@ class R2SDF(Hardware):
         self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
         # self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
-        self.out = DataWithIndex(mpc(0.0), 0)
+        self.out = DataWithIndex(ComplexFloat(), 0)
 
     def main(self, x):
         # #execute stages
