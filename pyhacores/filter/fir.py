@@ -2,6 +2,8 @@ from pyha import Hardware, Sfix, simulate, sims_close
 from scipy import signal
 import numpy as np
 
+from pyha.common.float import Float
+
 
 class FIR(Hardware):
     def __init__(self, taps):
