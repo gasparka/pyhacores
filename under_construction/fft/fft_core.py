@@ -27,14 +27,14 @@ class StageR2SDF(Hardware):
         self.shr = ShiftRegister([ComplexFloat() for _ in range(self.FFT_HALF)])
 
         # print(mp)
-        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -7, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        # self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
         self.TWIDDLES = [ComplexFloat(W(i, self.FFT_SIZE)) for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
         # up = resize(in_up + in_down, 0, -17) # make 0, -17 default?
         up = in_up + in_down
-
+        #
         # down_part = resize(in_up - in_down, 0, -17)
         down_part = in_up - in_down
         # down = resize(down_part * twiddle, 0, -17)
@@ -138,13 +138,13 @@ def test_fft(fft_size):
 
 
 def test_synth():
-    fft_size = 1024 * 2 * 2 * 2
+    fft_size = 1024
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
+    sims = simulate(dut, inp, input_types=[ComplexFloat()], simulations=['MODEL', 'PYHA',
                                            # 'RTL',
                                            'GATE'
                                            ],
