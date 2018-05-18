@@ -25,7 +25,7 @@ class StageR2SDFSFIX(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
-        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -17, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -10, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
     def butterfly(self, in_up, in_down, twiddle):
@@ -42,7 +42,7 @@ class StageR2SDFSFIX(Hardware):
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
 
-            if self.FFT_HALF > 4:
+            if self.FFT_HALF > 8:
                 down >>= 1
                 up >>= 1
 
@@ -61,7 +61,7 @@ class R2SDFSFIX(Hardware):
         self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
         self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
-        self.out = DataWithIndex(Complex(0.0, 0, -17), 0)
+        self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
     def main(self, x):
         # #execute stages
@@ -103,7 +103,7 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = ShiftRegister([ComplexFloat() for _ in range(self.FFT_HALF)])
 
-        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -5, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -8, overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [ComplexFloat(W(i, self.FFT_SIZE)) for i in range(self.FFT_HALF)]
         # self.TWIDDLES = [W(i, self.FFT_SIZE) for i in range(self.FFT_HALF)]
 
