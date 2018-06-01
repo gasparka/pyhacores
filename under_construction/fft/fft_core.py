@@ -1,6 +1,9 @@
+import glob
+import pickle
 import timeit
 import pytest
 
+from data import load_iq
 from pyha import Hardware, simulate, sims_close, Complex, resize, Sfix
 import numpy as np
 
@@ -42,7 +45,7 @@ class StageR2SDFSFIX(Hardware):
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
 
-            if self.FFT_HALF > 8:
+            if self.FFT_HALF > 4:
                 down >>= 1
                 up >>= 1
 
@@ -75,7 +78,8 @@ class R2SDFSFIX(Hardware):
         return self.out
 
     def model_main(self, x):
-        ffts = np.fft.fft(x)
+        x = x.reshape(-1, self.FFT_SIZE)
+        ffts = np.fft.fft(x, self.FFT_SIZE)
 
         # apply bit reversing ie. mess up the output order to match radix-2 algorithm
         # from under_construction.fft.bit_reversal import bit_reversed_indexes
@@ -202,6 +206,20 @@ def test_floats():
 # 7 bit
 # Total logic elements	5,442
 
+# 11 bit
+# FMAX : 23M (simple registers, 125M)
+# Device	EP4CE40F23C8
+# Timing Models	Final
+# Total logic elements	11,480 / 39,600 ( 29 % )
+# Total registers	341
+# Total pins	140 / 329 ( 43 % )
+# Total virtual pins	0
+# Total memory bits	293,976 / 1,161,216 ( 25 % )
+# Embedded Multiplier 9-bit elements	96 / 232 ( 41 % )
+
+# 12 bit
+# INFO:sim:Total logic elements : 13,079
+
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
 def test_fft(fft_size):
     # fft_size = 1024 * 8
@@ -223,13 +241,13 @@ def test_fft(fft_size):
 
 
 def test_synth():
-    fft_size = 1024
+    fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
-    dut = R2SDF(fft_size)
+    dut = R2SDFSFIX(fft_size)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
-    sims = simulate(dut, inp, input_types=[ComplexFloat()], simulations=['MODEL', 'PYHA',
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
                                            # 'RTL',
                                            'GATE'
                                            ],
@@ -237,6 +255,27 @@ def test_synth():
                     output_callback=unpackage,
                     input_callback=package)
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
+
+
+
+@pytest.mark.parametrize("file", glob.glob('/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/**/*.raw', recursive=True))
+def test_realsig(file):
+    fft_size = 1024 * 2 * 2 * 2
+    print(file)
+
+    iq = load_iq(file)
+    sig = iq.reshape(-1, fft_size)
+    sig *= np.hanning(fft_size)
+    sig = sig.flatten()
+
+    dut = R2SDFSFIX(fft_size)
+    sims = simulate(dut, sig, simulations=['MODEL', 'PYHA'],
+                    output_callback=unpackage,
+                    input_callback=package)
+
+    with open(f'{file}.pickle', 'wb') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
 
 
 def test_simple():
@@ -260,9 +299,9 @@ def test_simple():
 
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
-    fft_size = 1024
+    fft_size = 1024 *2 *2 *2
     np.random.seed(0)
-    dut = R2SDF(fft_size)
+    dut = R2SDFSFIX(fft_size)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
@@ -270,7 +309,7 @@ if __name__ == '__main__':
         # 'MODEL',
         'PYHA',
         # 'RTL',
-        # 'GATE'
+        'GATE'
     ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
