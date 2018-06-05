@@ -1,3 +1,4 @@
+import logging
 import pickle
 import pytest
 
@@ -6,6 +7,9 @@ from pyha import Hardware, simulate, sims_close, Complex, resize, scalb
 import numpy as np
 from pyha.common.shift_register import ShiftRegister
 from under_construction.fft.packager import DataWithIndex, unpackage, package
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('fft')
 
 
 def W(k, N):
@@ -21,53 +25,75 @@ class StageR2SDF(Hardware):
         self.CONTROL_MASK = (self.FFT_HALF - 1)
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
-        self.TWIDDLES = [Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits-1), overflow_style='saturate', round_style='round') for i in range(self.FFT_HALF)]
+        self.TWIDDLES = [
+            Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
+            in range(self.FFT_HALF)]
+
+        self.out = Complex()
 
     def butterfly(self, in_up, in_down, twiddle):
         if self.FFT_HALF > 4:
             up = resize(scalb(in_up + in_down, -1), 0, -17, round_style='round')
             down_part = resize(in_up - in_down, 0, -17)
             down = resize(scalb(down_part * twiddle, -1), 0, -17, round_style='round')
-            return up, down
         else:
             up = resize(in_up + in_down, 0, -17)
             down_part = resize(in_up - in_down, 0, -17)
             down = resize(down_part * twiddle, 0, -17, round_style='round')
-            return up, down
+        return up, down
+
+        # TODO: Bug..negative integer index?
+        # up = in_up + in_down
+        # down_part = resize(in_up - in_down, 0, -17)
+        # down = down_part * twiddle
+        #
+        # if self.FFT_HALF > 4:
+        #     up = scalb(up, -1)
+        #     down = scalb(down, -1)
+        #
+        # up = resize(up, 0, -17, round_style='round')
+        # down = resize(down, 0, -17, round_style='round')
+        # return up, down
 
     def main(self, x, control):
+
+        # logger.info(f'{self.FFT_SIZE} - {control}')
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
-            return self.shr.peek()
+            self.out = self.shr.peek()
         else:
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
-
             self.shr.push_next(down)
-            return up
+            self.out = up
+
+        return self.out
 
 
 class R2SDF(Hardware):
     def __init__(self, fft_size, twiddle_bits=18):
         self.FFT_SIZE = fft_size
 
-        self.n_bits = int(np.log2(fft_size))
-        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits) for pow in reversed(range(self.n_bits))]
+        self.N_STAGES = int(np.log2(fft_size))
+        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits) for pow in reversed(range(self.N_STAGES))]
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
-        self.GAIN_CORRECTION = 2 ** (0 if self.n_bits - 3 < 0 else -(self.n_bits - 3))
-        self.DELAY = (fft_size - 1) + 1  # +1 is output register
+        self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
+        self.DELAY = (fft_size - 1) + 1 + self.N_STAGES  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
     def main(self, x):
-        # #execute stages
+        # execute stages
         out = x.data
-        for stage in self.stages:
-            out = stage.main(out, x.index)
+        for i in range(len(self.stages)):
+            index = (x.index - i) % self.FFT_SIZE
+            out = self.stages[i].main(out, index)
+        # for stage in self.stages:
+        #     out = stage.main(out, x.index)
 
         self.out.data = out
-        self.out.index = (x.index + self.DELAY + 1) % self.FFT_SIZE
+        self.out.index = (x.index - (self.N_STAGES - 1)) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
@@ -93,33 +119,25 @@ class R2SDF(Hardware):
         return ffts
 
 
-# 9 bit (MAX)
-# MAX clk: 22MHz
-# Max Sine peak: ~56 dB
-# Total logic elements	8,677 / 15,840 ( 55 % )
-# Total registers	341
-# Total memory bits	293,976 / 562,176 ( 52 % )
-# Embedded Multiplier 9-bit elements	90 / 90 ( 100 % )
+def test_pipeline():
+    fft_size = 32
+    dut = R2SDF(fft_size, twiddle_bits=18)
 
-# 8 bit
-# Total logic elements	6,424 / 39,600 ( 16 % )
+    inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
+    inp *= 0.125
+    # inp = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j] * 4) * 0.1
 
-# 7 bit
-# Total logic elements	5,442
+    sims = simulate(dut, inp, simulations=[
+        'MODEL',
+        'PYHA',
+        # 'RTL',
+        # 'GATE'
+    ],
+                    output_callback=unpackage,
+                    input_callback=package)
 
-# 11 bit
-# FMAX : 23M (simple registers, 125M)
-# Device	EP4CE40F23C8
-# Timing Models	Final
-# Total logic elements	11,480 / 39,600 ( 29 % )
-# Total registers	341
-# Total pins	140 / 329 ( 43 % )
-# Total virtual pins	0
-# Total memory bits	293,976 / 1,161,216 ( 25 % )
-# Embedded Multiplier 9-bit elements	96 / 232 ( 41 % )
+    assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
-# 12 bit
-# INFO:sim:Total logic elements : 13,079
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
 def test_fft(fft_size):
@@ -141,9 +159,40 @@ def test_fft(fft_size):
 
 
 def test_synth():
+    # 9 bit (MAX)
+    # MAX clk: 22MHz
+    # Max Sine peak: ~56 dB
+    # Total logic elements	8,677 / 15,840 ( 55 % )
+    # Total registers	341
+    # Total memory bits	293,976 / 562,176 ( 52 % )
+    # Embedded Multiplier 9-bit elements	90 / 90 ( 100 % )
+
+    # 8 bit
+    # Total logic elements	6,424 / 39,600 ( 16 % )
+
+    # 7 bit
+    # Total logic elements	5,442
+
+    # 11 bit
+    # Total logic elements	12,905 / 39,600 ( 33 % )
+    # FMAX: 16M ( 58M with 2 up/down regs only, retime +0, 52.82 MHz (out reg only) )
+    # OLD NO ROUND:
+    # FMAX : 23M (simple registers, 125M)
+    # Device	EP4CE40F23C8
+    # Timing Models	Final
+    # Total logic elements	11,480 / 39,600 ( 29 % )
+    # Total registers	341
+    # Total pins	140 / 329 ( 43 % )
+    # Total virtual pins	0
+    # Total memory bits	293,976 / 1,161,216 ( 25 % )
+    # Embedded Multiplier 9-bit elements	96 / 232 ( 41 % )
+
+    # 12 bit
+    # INFO:sim:Total logic elements : 13,079
+
     fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
-    dut = R2SDF(fft_size)
+    dut = R2SDF(fft_size, twiddle_bits=11)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
@@ -155,7 +204,6 @@ def test_synth():
                     output_callback=unpackage,
                     input_callback=package)
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
-
 
 
 # @pytest.mark.parametrize("file", glob.glob('/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/**/*.raw', recursive=True))
@@ -201,7 +249,7 @@ def test_simple():
 
 # import pyha.simulation.simulation_interface import simulate
 if __name__ == '__main__':
-    fft_size = 1024 *2 *2 *2
+    fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
     dut = R2SDF(fft_size)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
