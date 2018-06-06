@@ -54,13 +54,16 @@ def test_simple():
     decimation=4
     dut = Spectrogram(fft_size, decimation)
 
-    packets = 3
+    packets = 1
     inp = np.random.uniform(-1, 1, fft_size * packets) + np.random.uniform(-1, 1, fft_size * packets) * 1j
     inp *= 0.5
 
     sims = simulate(dut, inp,
                     output_callback=unpackage,
-                    simulations=['MODEL', 'PYHA'],
+                    simulations=['MODEL', 'PYHA',
+                                 'GATE',
+                                 'RTL'
+                                 ],
                     conversion_path='/home/gaspar/git/pyhacores/playground')
 
     # import matplotlib.pyplot as plt
@@ -71,7 +74,8 @@ def test_simple():
 
     sims['MODEL'] = np.array(sims['MODEL']) / np.array(sims['MODEL']).max()
     sims['PYHA'] = np.array(sims['PYHA']) / np.array(sims['PYHA']).max()
-    # sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
+    sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
+    sims['GATE'] = np.array(sims['GATE']) / np.array(sims['GATE']).max()
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
@@ -88,8 +92,9 @@ def test_real_life():
 
     sims = simulate(dut, orig_inp,
                     output_callback=unpackage,
-                    simulations=['MODEL', 'PYHA', 'RTL',
-                                 'GATE'
+                    simulations=['MODEL', 'PYHA',
+                                 # 'RTL',
+                                 # 'GATE'
                                  ],
                     conversion_path='/home/gaspar/git/pyhacores/playground')
 
