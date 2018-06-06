@@ -29,7 +29,7 @@ class BitreversalFFTshiftDecimate(Hardware):
         self.state = True
         self.mem0 = RAM([Sfix(0.0, self.DECIMATION_BITS, -17)] * (fft_size // decimation))
         self.mem1 = RAM([Sfix(0.0, self.DECIMATION_BITS, -17)] * (fft_size // decimation))
-        self.out = DataWithIndex(Sfix(0.0, self.DECIMATION_BITS, -17), 0)
+        self.out = DataWithIndex(Sfix(0.0, 0, -17), 0)
         self.DELAY = fft_size + 1
 
     def main(self, inp):
@@ -76,9 +76,9 @@ class BitreversalFFTshiftDecimate(Hardware):
         # return self.out
         out = DataWithIndex(read, index=self.out.index, valid=self.out.valid)
         if self.state:
-            out.data = self.mem1.get_readregister() >> self.DECIMATION_BITS
+            out.data = resize(self.mem1.get_readregister() >> self.DECIMATION_BITS, 0, -17)
         else:
-            out.data = self.mem0.get_readregister() >> self.DECIMATION_BITS
+            out.data = resize(self.mem0.get_readregister() >> self.DECIMATION_BITS, 0, -17)
 
         return out
 
@@ -107,7 +107,7 @@ def test_basicc():
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
-                                             # 'RTL',
+                                             'RTL',
                                              # 'GATE'
                                              ],
                     output_callback=unpackage,
@@ -118,9 +118,36 @@ def test_basicc():
     mod = get_last_trained_object()
     assert sims_close(sims)
 
+def test_synth():
+    fft_size = 1024
+    decimation = 4
+    packets = 1
+    orig_inp = np.random.uniform(-1, 1, fft_size * packets)
+    orig_inp = [orig_inp] * packets
+
+    rev_index = bit_reversed_indexes(fft_size)
+    shift = np.fft.fftshift(orig_inp, axes=1)
+    input = shift[:, rev_index]
+
+    dut = BitreversalFFTshiftDecimate(fft_size, decimation)
+
+    sims = simulate(dut, input, simulations=['MODEL',
+                                             'PYHA',
+                                             # 'RTL',
+                                             'GATE'
+                                             ],
+                    output_callback=unpackage,
+                    input_callback=package,
+                    conversion_path='/home/gaspar/git/pyhacores/playground'
+                    )
+
+    mod = get_last_trained_object()
+    assert sims_close(sims)
+
+
 
 @pytest.mark.parametrize("decimation", [2, 4, 8])
-@pytest.mark.parametrize("fft_size", [256, 128, 64, 32])
+@pytest.mark.parametrize("fft_size", [512, 256, 128, 64, 32])
 @pytest.mark.parametrize("packets", [4, 3, 2, 1])
 def test_basic(fft_size, decimation, packets):
     # fft_size = 1024 * 8
