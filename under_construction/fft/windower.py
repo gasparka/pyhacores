@@ -9,11 +9,11 @@ from under_construction.fft.packager import DataWithIndex, Packager, unpackage, 
 # Embedded Multiplier 9-bit elements	4 / 232 ( 2 % )
 
 class Windower(Hardware):
-    def __init__(self, M, window_type='hanning'):
+    def __init__(self, M, window_type='hanning', coefficient_bits=18):
         assert window_type == 'hanning'
         self.M = M
         self.window_pure = np.hanning(M)
-        self.WINDOW = [Sfix(x, 0, -7, round_style='round', overflow_style='saturate') for x in np.hanning(M)]
+        self.WINDOW = [Sfix(x, 0, -(coefficient_bits-1), round_style='round', overflow_style='saturate') for x in np.hanning(M)]
         # self.WINDOW = np.hanning(M)
         self.out = DataWithIndex(Complex())
         self.DELAY = 1

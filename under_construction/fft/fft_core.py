@@ -190,9 +190,43 @@ def test_synth():
     # 12 bit
     # INFO:sim:Total logic elements : 13,079
 
+    # 9 bit
+    # INFO:sim:Analysis & Synthesis Status : Successful - Tue Jun 19 10:24:46 2018
+    # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # INFO:sim:Revision Name : quartus_project
+    # INFO:sim:Top-level Entity Name : top
+    # INFO:sim:Family : Cyclone IV E
+    # INFO:sim:Total logic elements : 9,112
+    # INFO:sim:    Total combinational functions : 9,038
+    # INFO:sim:    Dedicated logic registers : 790
+    # INFO:sim:Total registers : 790
+    # INFO:sim:Total pins : 140
+    # INFO:sim:Total virtual pins : 0
+    # INFO:sim:Total memory bits : 293,976
+    # INFO:sim:Embedded Multiplier 9-bit elements : 96
+    # INFO:sim:Total PLLs : 0
+    # INFO:sim:Running netlist writer.
+
+    # 10 bit
+    # INFO:sim:Analysis & Synthesis Status : Successful - Tue Jun 19 10:43:00 2018
+    # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # INFO:sim:Revision Name : quartus_project
+    # INFO:sim:Top-level Entity Name : top
+    # INFO:sim:Family : Cyclone IV E
+    # INFO:sim:Total logic elements : 10,685
+    # INFO:sim:    Total combinational functions : 10,611
+    # INFO:sim:    Dedicated logic registers : 790
+    # INFO:sim:Total registers : 790
+    # INFO:sim:Total pins : 140
+    # INFO:sim:Total virtual pins : 0
+    # INFO:sim:Total memory bits : 293,976
+    # INFO:sim:Embedded Multiplier 9-bit elements : 96
+    # INFO:sim:Total PLLs : 0
+    # INFO:sim:Running netlist writer.
+
     fft_size = 1024 * 2 * 2 * 2
     np.random.seed(0)
-    dut = R2SDF(fft_size, twiddle_bits=11)
+    dut = R2SDF(fft_size, twiddle_bits=10)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
     inp *= 0.25
 
@@ -211,7 +245,6 @@ def test_synth():
 def test_realsig():
     file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/1520936452.2426_fs=20000000.0_bw=20000000.0_fc=2431000000.0_d=0_g=033000.raw'
     fft_size = 1024 * 2 * 2 * 2
-    print(file)
 
     iq = load_iq(file)
     sig = iq.reshape(-1, fft_size)

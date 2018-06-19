@@ -1,17 +1,20 @@
+import pickle
+
 import numpy as np
 from data import load_iq
 
-from pyha import Hardware, simulate, hardware_sims_equal, sims_close
+from pyha import Hardware, simulate, hardware_sims_equal, sims_close, Sfix
 from under_construction.fft.bitreversal_fftshift_decimate import BitreversalFFTshiftDecimate
 from under_construction.fft.conjmult import ConjMult
 from under_construction.fft.fft_core import R2SDF
-from under_construction.fft.packager import Packager, unpackage
+from under_construction.fft.packager import Packager, unpackage, DataWithIndex
 from under_construction.fft.windower import Windower
 from scipy import signal
 
 
 class Spectrogram(Hardware):
     """ The gain of main/model_main wont match"""
+
     def __init__(self, nfft, decimate_by=2, window_type='hanning'):
         self.DECIMATE_BY = decimate_by
         self.NFFT = nfft
@@ -50,19 +53,19 @@ class Spectrogram(Hardware):
 
 def test_simple():
     np.random.seed(0)
-    fft_size=512
-    decimation=4
+    fft_size = 1024 * 8
+    decimation = 32
     dut = Spectrogram(fft_size, decimation)
 
     packets = 1
     inp = np.random.uniform(-1, 1, fft_size * packets) + np.random.uniform(-1, 1, fft_size * packets) * 1j
-    inp *= 0.5
+    inp *= 0.5 * 0.001
 
     sims = simulate(dut, inp,
                     output_callback=unpackage,
                     simulations=['MODEL', 'PYHA',
-                                 'GATE',
-                                 'RTL'
+                                 # 'GATE',
+                                 # 'RTL'
                                  ],
                     conversion_path='/home/gaspar/git/pyhacores/playground')
 
@@ -74,21 +77,43 @@ def test_simple():
 
     sims['MODEL'] = np.array(sims['MODEL']) / np.array(sims['MODEL']).max()
     sims['PYHA'] = np.array(sims['PYHA']) / np.array(sims['PYHA']).max()
-    sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
-    sims['GATE'] = np.array(sims['GATE']) / np.array(sims['GATE']).max()
+    # sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
+    # sims['GATE'] = np.array(sims['GATE']) / np.array(sims['GATE']).max()
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
+def test_realsig():
+    file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/1520936452.2426_fs=20000000.0_bw=20000000.0_fc=2431000000.0_d=0_g=033000.raw'
+    fft_size = 1024 * 2 * 2 * 2
+    decimation = 32
+    print(file)
+
+    iq = load_iq(file)
+    iq = iq[:len(iq) // 8]
+
+    dut = Spectrogram(fft_size, decimation)
+    sims = simulate(dut, iq, simulations=['MODEL', 'PYHA'],
+                    output_callback=unpackage)
+
+    with open(f'{file}_spectro.pickle', 'wb') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
+
+
 def test_real_life():
-    fft_size=256
-    decimation=4
+    fft_size = 1024 * 8
+    decimation = 32
     dut = Spectrogram(fft_size, decimation)
 
-    orig_inp = load_iq(
-        '/home/gaspar/Documents/Phantom 3 & 4=-90_20180104123014261769/1515061814.9318_qdetector_fs=20000000.0_bw=20000000.0_fc=2420000000.0_d=0.raw')
+    file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/1520936452.2426_fs=20000000.0_bw=20000000.0_fc=2431000000.0_d=0_g=033000.raw'
 
-    orig_inp = orig_inp[:16000//4]
-    orig_inp /= orig_inp.max() * 2
+    orig_inp = load_iq(file)
+
+    orig_inp = orig_inp[:len(orig_inp) // (1024 * 4)]
+    # orig_inp /= orig_inp.max() * 2
+
+    # orig_inp = np.random.uniform(-1, 1, fft_size * 1) + np.random.uniform(-1, 1, fft_size * 1) * 1j
+    # orig_inp *= 0.5
 
     sims = simulate(dut, orig_inp,
                     output_callback=unpackage,
@@ -106,6 +131,7 @@ def test_real_life():
 
     sims['MODEL'] = np.array(sims['MODEL']) / np.array(sims['MODEL']).max()
     sims['PYHA'] = np.array(sims['PYHA']) / np.array(sims['PYHA']).max()
-    sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
-    sims['GATE'] = np.array(sims['GATE']) / np.array(sims['GATE']).max()
+    # sims['RTL'] = np.array(sims['RTL']) / np.array(sims['RTL']).max()
+    # sims['GATE'] = np.array(sims['GATE']) / np.array(sims['GATE']).max()
+    assert hardware_sims_equal(sims)
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
