@@ -9,7 +9,7 @@ from under_construction.fft.packager import DataWithIndex, Packager, unpackage, 
 # Embedded Multiplier 9-bit elements	4 / 232 ( 2 % )
 
 class Windower(Hardware):
-    def __init__(self, M, window_type='hanning', coefficient_bits=18):
+    def __init__(self, M, window_type='hanning', coefficient_bits=8):
         assert window_type == 'hanning'
         self.M = M
         self.window_pure = np.hanning(M)

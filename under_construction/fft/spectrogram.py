@@ -52,6 +52,33 @@ class Spectrogram(Hardware):
 
 
 def test_simple():
+    # TWID: 10b, WINDOW: 8b
+    # Flow Status	Successful - Wed Jun 20 12:38:29 2018
+    # Quartus Prime Version	17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # Revision Name	quartus_project
+    # Top-level Entity Name	top
+    # Family	Cyclone IV E
+    # Device	EP4CE40F23C8
+    # Timing Models	Final
+    # Total logic elements	11,729 / 39,600 ( 30 % )
+    # Total registers	955
+    # Total pins	107 / 329 ( 33 % )
+    # Total virtual pins	0
+    # Total memory bits	312,408 / 1,161,216 ( 27 % )
+    # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
+    # Total PLLs	0 / 4 ( 0 % )
+
+    # TWID: 9b, WINDOW: 8b
+    # Family	Cyclone IV E
+    # Device	EP4CE40F23C8
+    # Timing Models	Final
+    # Total logic elements	10,146 / 39,600 ( 26 % )
+    # Total registers	955
+    # Total pins	107 / 329 ( 33 % )
+    # Total virtual pins	0
+    # Total memory bits	312,408 / 1,161,216 ( 27 % )
+    # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
+    # Total PLLs	0 / 4 ( 0 % )
     np.random.seed(0)
     fft_size = 1024 * 8
     decimation = 32
@@ -64,7 +91,7 @@ def test_simple():
     sims = simulate(dut, inp,
                     output_callback=unpackage,
                     simulations=['MODEL', 'PYHA',
-                                 # 'GATE',
+                                 'GATE',
                                  # 'RTL'
                                  ],
                     conversion_path='/home/gaspar/git/pyhacores/playground')
@@ -83,13 +110,14 @@ def test_simple():
 
 
 def test_realsig():
-    file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/1520936452.2426_fs=20000000.0_bw=20000000.0_fc=2431000000.0_d=0_g=033000.raw'
+    # file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313122024455464_far_10m_regular/1520936452.2426_fs=20000000.0_bw=20000000.0_fc=2431000000.0_d=0_g=033000.raw'
+    file = '/home/gaspar/Documents/low_power_ph3.raw'
     fft_size = 1024 * 2 * 2 * 2
     decimation = 32
     print(file)
 
     iq = load_iq(file)
-    iq = iq[:len(iq) // 8]
+    # iq = iq[:len(iq) // 8]
 
     dut = Spectrogram(fft_size, decimation)
     sims = simulate(dut, iq, simulations=['MODEL', 'PYHA'],
@@ -98,6 +126,25 @@ def test_realsig():
     with open(f'{file}_spectro.pickle', 'wb') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
+
+def test_realsig2():
+    file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313120601081997_noremote_medium_10m/1520935599.0396_fs=20000000.0_bw=20000000.0_fc=2410000000.0_d=3_g=063015.raw'
+
+    fft_size = 1024 * 2 * 2 * 2
+    decimation = 32
+    print(file)
+
+    iq = load_iq(file)
+    # iq = iq[:len(iq) // 8]
+
+    dut = Spectrogram(fft_size, decimation)
+    sims = simulate(dut, iq, simulations=['MODEL', 'PYHA'],
+                    output_callback=unpackage)
+
+    with open(f'{file}_spectro.pickle', 'wb') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
+
 
 
 def test_real_life():

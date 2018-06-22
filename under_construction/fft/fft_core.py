@@ -71,7 +71,7 @@ class StageR2SDF(Hardware):
 
 
 class R2SDF(Hardware):
-    def __init__(self, fft_size, twiddle_bits=18):
+    def __init__(self, fft_size, twiddle_bits=9):
         self.FFT_SIZE = fft_size
 
         self.N_STAGES = int(np.log2(fft_size))
