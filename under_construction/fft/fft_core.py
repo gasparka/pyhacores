@@ -166,7 +166,7 @@ def test_fft(fft_size):
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        'RTL',
+        # 'RTL',
         # 'GATE'
     ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
