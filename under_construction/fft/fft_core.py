@@ -32,42 +32,47 @@ class StageR2SDF(Hardware):
         self.out = Complex()
 
     def butterfly(self, in_up, in_down, twiddle):
-        if self.FFT_HALF > 4:
-            up = resize(scalb(in_up + in_down, -1), 0, -17, round_style='round')
-            down_part = resize(in_up - in_down, 0, -17)
-            down = resize(scalb(down_part * twiddle, -1), 0, -17, round_style='round')
-        else:
-            up = resize(in_up + in_down, 0, -17)
-            down_part = resize(in_up - in_down, 0, -17)
-            down = resize(down_part * twiddle, 0, -17, round_style='round')
-        return up, down
-
-        # TODO: Bug..negative integer index?
-        # up = in_up + in_down
-        # down_part = resize(in_up - in_down, 0, -17)
-        # down = down_part * twiddle
-        #
         # if self.FFT_HALF > 4:
-        #     up = scalb(up, -1)
-        #     down = scalb(down, -1)
-        #
-        # up = resize(up, 0, -17, round_style='round')
-        # down = resize(down, 0, -17, round_style='round')
+        #     up = resize(scalb(in_up + in_down, -1), 0, -17, round_style='round')
+        #     down_part = resize(in_up - in_down, 0, -17)
+        #     down = resize(scalb(down_part * twiddle, -1), 0, -17, round_style='round')
+        # else:
+        #     up = resize(in_up + in_down, 0, -17)
+        #     down_part = resize(in_up - in_down, 0, -17)
+        #     down = resize(down_part * twiddle, 0, -17, round_style='round')
         # return up, down
+
+        up = resize(in_up + in_down, 0, -17)
+        down = resize(in_up - in_down, 0, -17)
+        return up, down
 
     def main(self, x, control):
 
-        # logger.info(f'{self.FFT_SIZE} - {control}')
+        # Stage1: butterfly adders, handle the single output by controlling the shift-register
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
-            self.out = self.shr.peek()
+            stage1_out = self.shr.peek()
         else:
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
             up, down = self.butterfly(self.shr.peek(), x, twid)
             self.shr.push_next(down)
-            self.out = up
+            stage1_out = up
 
-        return self.out
+        # Stage 2: complex multiply, only the botton line
+        # FFT_HALF=1 does not need the complex mult, FFT_HALF=2 could be optimized (needs swap logic)
+        if not (control & self.FFT_HALF) and self.FFT_HALF != 1:
+            twid = self.TWIDDLES[control & self.CONTROL_MASK]
+            stage2_out = stage1_out * twid
+        else:
+            stage2_out = stage1_out
+
+        # Stage 3: gain control
+        if self.FFT_HALF > 4:
+            stage3_out = resize(scalb(stage2_out, -1), 0, -17, round_style='round')
+        else:
+            stage3_out = stage2_out
+
+        return stage3_out
 
 
 class R2SDF(Hardware):
@@ -79,21 +84,33 @@ class R2SDF(Hardware):
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + 1 + self.N_STAGES  # +1 is output register
+        # self.DELAY = (fft_size - 1) + 1 + self.N_STAGES  # +1 is output register
+        self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
+    # def main(self, x):
+    #     # execute stages
+    #     out = x.data
+    #     # for i in range(len(self.stages)):
+    #     #     index = (x.index - i) % self.FFT_SIZE
+    #     #     out = self.stages[i].main(out, index)
+    #     for stage in self.stages:
+    #         out = stage.main(out, x.index)
+    #
+    #     self.out.data = out
+    #     self.out.index = (x.index - (self.N_STAGES - 1)) % self.FFT_SIZE
+    #     self.out.valid = x.valid
+    #     return self.out
+
     def main(self, x):
-        # execute stages
+        # #execute stages
         out = x.data
-        for i in range(len(self.stages)):
-            index = (x.index - i) % self.FFT_SIZE
-            out = self.stages[i].main(out, index)
-        # for stage in self.stages:
-        #     out = stage.main(out, x.index)
+        for stage in self.stages:
+            out = stage.main(out, x.index)
 
         self.out.data = out
-        self.out.index = (x.index - (self.N_STAGES - 1)) % self.FFT_SIZE
+        self.out.index = (x.index + self.DELAY + 1) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
@@ -120,7 +137,7 @@ class R2SDF(Hardware):
 
 
 def test_pipeline():
-    fft_size = 32
+    fft_size = 2
     dut = R2SDF(fft_size, twiddle_bits=18)
 
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
@@ -130,7 +147,7 @@ def test_pipeline():
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        # 'RTL',
+        'RTL',
         # 'GATE'
     ],
                     output_callback=unpackage,
@@ -139,23 +156,23 @@ def test_pipeline():
     assert sims_close(sims, rtol=1e-1, atol=1e-4)
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048])
 def test_fft(fft_size):
     np.random.seed(0)
-    dut = R2SDF(fft_size, twiddle_bits=12)
+    dut = R2SDF(fft_size, twiddle_bits=14)
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
     inp *= 0.25
 
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        # 'RTL',
+        'RTL',
         # 'GATE'
     ],
                     conversion_path='/home/gaspar/git/pyhacores/playground',
                     output_callback=unpackage,
                     input_callback=package)
-    assert sims_close(sims, rtol=1e-1, atol=1e-4)
+    assert sims_close(sims, rtol=1e-3, atol=1e-4)
 
 
 def test_synth():
