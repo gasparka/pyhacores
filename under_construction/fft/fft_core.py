@@ -32,7 +32,7 @@ class StageR2SDF(Hardware):
         self.control_reg = 0
         self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
-        self.stage2_out = Complex(0, 0, -35)
+        self.stage2_out = Complex(0, 0, -17 - (twiddle_bits - 1))
         self.stage3_out = Complex(0, 0, -17, round_style='round')
         self.out = Complex()
 
@@ -43,7 +43,9 @@ class StageR2SDF(Hardware):
 
     def main(self, x, control):
 
-        # Stage1: butterfly adders, handle the single output by controlling the shift-register
+        # Stage 1: handle the loopback memory, to calculate butterfly additions.
+        # Also fetch the twiddle factor.
+        self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
         self.control_reg = control
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
@@ -52,11 +54,9 @@ class StageR2SDF(Hardware):
             up, down = self.butterfly(self.shr.peek(), x)
             self.shr.push_next(down)
             self.stage1_out = up
-        self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
 
         # Stage 2: complex multiply, only the botton line
         if not (self.control_reg & self.FFT_HALF) and self.FFT_HALF != 1:
-            # twid = self.TWIDDLES[self.control_reg & self.CONTROL_MASK]
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
@@ -236,7 +236,21 @@ def test_synth():
     # INFO:sim:Total PLLs : 0
     # INFO:sim:Running netlist writer.
 
+
+    # PIPELINED
+    # 10 bit
+    # Fmax = 95M
+    # Family	Cyclone IV E
+    # Total logic elements	9,845
+    # Total registers	2013
+    # Total pins	140
+    # Total virtual pins	0
+    # Total memory bits	294,048
+    # Embedded Multiplier 9-bit elements	96
+    # Total PLLs	0
+
     fft_size = 1024 * 2 * 2 * 2
+    fft_size = 8
     np.random.seed(0)
     dut = R2SDF(fft_size, twiddle_bits=10)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
