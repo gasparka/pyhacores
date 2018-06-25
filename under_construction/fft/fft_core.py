@@ -29,21 +29,13 @@ class StageR2SDF(Hardware):
             Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
             in range(self.FFT_HALF)]
 
+        self.control_reg = 0
+        self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -35)
         self.stage3_out = Complex(0, 0, -17, round_style='round')
         self.out = Complex()
 
-    def butterfly(self, in_up, in_down, twiddle):
-        # if self.FFT_HALF > 4:
-        #     up = resize(scalb(in_up + in_down, -1), 0, -17, round_style='round')
-        #     down_part = resize(in_up - in_down, 0, -17)
-        #     down = resize(scalb(down_part * twiddle, -1), 0, -17, round_style='round')
-        # else:
-        #     up = resize(in_up + in_down, 0, -17)
-        #     down_part = resize(in_up - in_down, 0, -17)
-        #     down = resize(down_part * twiddle, 0, -17, round_style='round')
-        # return up, down
-
+    def butterfly(self, in_up, in_down):
         up = resize(in_up + in_down, 0, -17)
         down = resize(in_up - in_down, 0, -17)
         return up, down
@@ -51,22 +43,21 @@ class StageR2SDF(Hardware):
     def main(self, x, control):
 
         # Stage1: butterfly adders, handle the single output by controlling the shift-register
+        self.control_reg = control
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
-            stage1_out = self.shr.peek()
+            self.stage1_out = self.shr.peek()
         else:
-            twid = self.TWIDDLES[control & self.CONTROL_MASK]
-            up, down = self.butterfly(self.shr.peek(), x, twid)
+            up, down = self.butterfly(self.shr.peek(), x)
             self.shr.push_next(down)
-            stage1_out = up
+            self.stage1_out = up
 
         # Stage 2: complex multiply, only the botton line
-        # FFT_HALF=1 does not need the complex mult, FFT_HALF=2 could be optimized (needs swap logic)
-        if not (control & self.FFT_HALF) and self.FFT_HALF != 1:
-            twid = self.TWIDDLES[control & self.CONTROL_MASK]
-            self.stage2_out = stage1_out * twid
+        if not (self.control_reg & self.FFT_HALF):
+            twid = self.TWIDDLES[self.control_reg & self.CONTROL_MASK]
+            self.stage2_out = self.stage1_out * twid
         else:
-            self.stage2_out = stage1_out
+            self.stage2_out = self.stage1_out
 
         # Stage 3: gain control and rounding
         if self.FFT_HALF > 4:
@@ -86,7 +77,7 @@ class R2SDF(Hardware):
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + 1 + (self.N_STAGES*2)  # +1 is output register
+        self.DELAY = (fft_size - 1) + 1 + (self.N_STAGES*3)  # +1 is output register
         # self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
@@ -95,13 +86,13 @@ class R2SDF(Hardware):
         # execute stages
         out = x.data
         for i in range(len(self.stages)):
-            index = (x.index - (i*2)) % self.FFT_SIZE
+            index = (x.index - (i*3)) % self.FFT_SIZE
             out = self.stages[i].main(out, index)
         # for stage in self.stages:
         #     out = stage.main(out, x.index)
 
         self.out.data = out
-        self.out.index = (x.index - ((self.N_STAGES*2) - 1)) % self.FFT_SIZE
+        self.out.index = (x.index - ((self.N_STAGES*3) - 1)) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
