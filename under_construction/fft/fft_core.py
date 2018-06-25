@@ -29,12 +29,13 @@ class StageR2SDF(Hardware):
             Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
             in range(self.FFT_HALF)]
 
-        self.control_reg = 0
+        self.DELAY = 3
+
+        self.control_delay = [0] * self.DELAY
         self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -17 - (twiddle_bits - 1))
         self.stage3_out = Complex(0, 0, -17, round_style='round')
-        self.out = Complex()
 
     def butterfly(self, in_up, in_down):
         up = resize(in_up + in_down, 0, -17)
@@ -42,11 +43,11 @@ class StageR2SDF(Hardware):
         return up, down
 
     def main(self, x, control):
+        self.control_delay = [control] + self.control_delay[:-1]
 
         # Stage 1: handle the loopback memory, to calculate butterfly additions.
         # Also fetch the twiddle factor.
         self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
-        self.control_reg = control
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
             self.stage1_out = self.shr.peek()
@@ -56,7 +57,7 @@ class StageR2SDF(Hardware):
             self.stage1_out = up
 
         # Stage 2: complex multiply, only the botton line
-        if not (self.control_reg & self.FFT_HALF) and self.FFT_HALF != 1:
+        if not (self.control_delay[0] & self.FFT_HALF) and self.FFT_HALF != 1:
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
@@ -67,7 +68,7 @@ class StageR2SDF(Hardware):
         else:
             self.stage3_out = self.stage2_out
 
-        return self.stage3_out
+        return self.stage3_out, self.control_delay[-1]
 
 
 class R2SDF(Hardware):
@@ -79,35 +80,21 @@ class R2SDF(Hardware):
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + 1 + (self.N_STAGES*3)  # +1 is output register
-        # self.DELAY = (fft_size - 1) + 1  # +1 is output register
+        self.DELAY = (fft_size - 1) + (self.N_STAGES * self.stages[0].DELAY) + 1 # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
     def main(self, x):
         # execute stages
         out = x.data
-        for i in range(len(self.stages)):
-            index = (x.index - (i*3)) % self.FFT_SIZE
-            out = self.stages[i].main(out, index)
-        # for stage in self.stages:
-        #     out = stage.main(out, x.index)
+        out_index = x.index
+        for stage in self.stages:
+            out, out_index = stage.main(out, out_index)
 
         self.out.data = out
-        self.out.index = (x.index - ((self.N_STAGES*3) - 1)) % self.FFT_SIZE
+        self.out.index = (out_index + 1) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
-
-    # def main(self, x):
-    #     # #execute stages
-    #     out = x.data
-    #     for stage in self.stages:
-    #         out = stage.main(out, x.index)
-    #
-    #     self.out.data = out
-    #     self.out.index = (x.index + self.DELAY + 1) % self.FFT_SIZE
-    #     self.out.valid = x.valid
-    #     return self.out
 
     def model_main(self, x):
         x = x.reshape(-1, self.FFT_SIZE)
@@ -132,7 +119,7 @@ class R2SDF(Hardware):
 
 
 def test_pipeline():
-    fft_size = 2
+    fft_size = 4
     dut = R2SDF(fft_size, twiddle_bits=18)
 
     inp = np.random.uniform(-1, 1, size=(2, fft_size)) + np.random.uniform(-1, 1, size=(2, fft_size)) * 1j
@@ -142,7 +129,7 @@ def test_pipeline():
     sims = simulate(dut, inp, simulations=[
         'MODEL',
         'PYHA',
-        'RTL',
+        # 'RTL',
         # 'GATE'
     ],
                     output_callback=unpackage,

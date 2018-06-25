@@ -117,13 +117,13 @@ def test_realsig():
     print(file)
 
     iq = load_iq(file)
-    # iq = iq[:len(iq) // 8]
+    iq = iq[:len(iq) // 8]
 
     dut = Spectrogram(fft_size, decimation)
     sims = simulate(dut, iq, simulations=['MODEL', 'PYHA'],
                     output_callback=unpackage)
 
-    with open(f'{file}_spectro.pickle', 'wb') as f:
+    with open(f'{file}_spectro_TST.pickle', 'wb') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
 
