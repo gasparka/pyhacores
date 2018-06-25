@@ -30,6 +30,7 @@ class StageR2SDF(Hardware):
             in range(self.FFT_HALF)]
 
         self.control_reg = 0
+        self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -35)
         self.stage3_out = Complex(0, 0, -17, round_style='round')
@@ -51,11 +52,12 @@ class StageR2SDF(Hardware):
             up, down = self.butterfly(self.shr.peek(), x)
             self.shr.push_next(down)
             self.stage1_out = up
+        self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
 
         # Stage 2: complex multiply, only the botton line
-        if not (self.control_reg & self.FFT_HALF):
-            twid = self.TWIDDLES[self.control_reg & self.CONTROL_MASK]
-            self.stage2_out = self.stage1_out * twid
+        if not (self.control_reg & self.FFT_HALF) and self.FFT_HALF != 1:
+            # twid = self.TWIDDLES[self.control_reg & self.CONTROL_MASK]
+            self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
 
