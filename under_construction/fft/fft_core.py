@@ -29,7 +29,8 @@ class StageR2SDF(Hardware):
             Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
             in range(self.FFT_HALF)]
 
-        self.stage3_out = Complex()
+        self.stage2_out = Complex(0, 0, -35)
+        self.stage3_out = Complex(0, 0, -17, round_style='round')
         self.out = Complex()
 
     def butterfly(self, in_up, in_down, twiddle):
@@ -63,15 +64,15 @@ class StageR2SDF(Hardware):
         # FFT_HALF=1 does not need the complex mult, FFT_HALF=2 could be optimized (needs swap logic)
         if not (control & self.FFT_HALF) and self.FFT_HALF != 1:
             twid = self.TWIDDLES[control & self.CONTROL_MASK]
-            stage2_out = stage1_out * twid
+            self.stage2_out = stage1_out * twid
         else:
-            stage2_out = stage1_out
+            self.stage2_out = stage1_out
 
         # Stage 3: gain control and rounding
         if self.FFT_HALF > 4:
-            self.stage3_out = resize(scalb(stage2_out, -1), 0, -17, round_style='round')
+            self.stage3_out = scalb(self.stage2_out, -1)
         else:
-            self.stage3_out = stage2_out
+            self.stage3_out = self.stage2_out
 
         return self.stage3_out
 
@@ -85,7 +86,7 @@ class R2SDF(Hardware):
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + 1 + self.N_STAGES  # +1 is output register
+        self.DELAY = (fft_size - 1) + 1 + (self.N_STAGES*2)  # +1 is output register
         # self.DELAY = (fft_size - 1) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
@@ -94,13 +95,13 @@ class R2SDF(Hardware):
         # execute stages
         out = x.data
         for i in range(len(self.stages)):
-            index = (x.index - i) % self.FFT_SIZE
+            index = (x.index - (i*2)) % self.FFT_SIZE
             out = self.stages[i].main(out, index)
         # for stage in self.stages:
         #     out = stage.main(out, x.index)
 
         self.out.data = out
-        self.out.index = (x.index - (self.N_STAGES - 1)) % self.FFT_SIZE
+        self.out.index = (x.index - ((self.N_STAGES*2) - 1)) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
