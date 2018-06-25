@@ -66,7 +66,7 @@ class StageR2SDF(Hardware):
         else:
             stage2_out = stage1_out
 
-        # Stage 3: gain control
+        # Stage 3: gain control and rounding
         if self.FFT_HALF > 4:
             stage3_out = resize(scalb(stage2_out, -1), 0, -17, round_style='round')
         else:
