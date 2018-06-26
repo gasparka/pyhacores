@@ -71,6 +71,7 @@ def test_simple():
     # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
     # Total PLLs	0 / 4 ( 0 % )
 
+    # NO DC REMOVAL
     # TWID: 9b, WINDOW: 8b
     # Family	Cyclone IV E
     # Device	EP4CE40F23C8
@@ -82,6 +83,20 @@ def test_simple():
     # Total memory bits	312,408 / 1,161,216 ( 27 % )
     # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
     # Total PLLs	0 / 4 ( 0 % )
+
+    # WITH DC REMOVAL + PIPELINED FFT, FMAX 80M
+    # TWID: 9b, WINDOW: 8b
+    # Device	EP4CE40F23C8
+    # Timing Models	Final
+    # Total logic elements	10,206 / 39,600 ( 26 % )
+    # Total registers	2782
+    # Total pins	107 / 329 ( 33 % )
+    # Total virtual pins	0
+    # Total memory bits	349,179 / 1,161,216 ( 30 % )
+    # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
+    # Total PLLs	0 / 4 ( 0 % )
+
+
     np.random.seed(0)
     fft_size = 1024 * 8
     decimation = 32
