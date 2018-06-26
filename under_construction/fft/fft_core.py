@@ -237,7 +237,7 @@ def test_synth():
     # Total PLLs	0
 
     fft_size = 1024 * 2 * 2 * 2
-    fft_size = 8
+    # fft_size = 8
     np.random.seed(0)
     dut = R2SDF(fft_size, twiddle_bits=10)
     inp = np.random.uniform(-1, 1, size=(1, fft_size)) + np.random.uniform(-1, 1, size=(1, fft_size)) * 1j
