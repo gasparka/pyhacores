@@ -1,7 +1,7 @@
 from scipy import signal
 
 import pytest
-from pyha import Hardware, Sfix, simulate, sims_close, Complex, resize
+from pyha import Hardware, Sfix, simulate, sims_close, Complex, resize, scalb
 from pyha.common.util import is_power2
 import numpy as np
 
@@ -42,7 +42,7 @@ class MovingAverage(Hardware):
 
         # calculate new sum
         self.sum = self.sum + x - self.mem[-1]
-        return resize(self.sum >> self.WINDOW_POW, 0, -17)
+        return self.sum >> self.WINDOW_POW
 
     def model_main(self, inputs):
         # MA expressed as FIR filter
@@ -104,10 +104,11 @@ def test_noisy_signal():
 
 def test_complex():
     np.random.seed(0)
-    dut = MovingAverage(window_len=8)
-    x = (np.random.normal(size=128) + np.random.normal(size=128)*1j) * 0.5
+    dut = MovingAverage(window_len=128)
+    N = 2**13
+    x = (np.random.normal(size=N) + np.random.normal(size=N)*1j) * 0.25
 
-    with Sfix._float_mode:
-        sim_out = simulate(dut, x, simulations=['MODEL', 'PYHA', 'RTL'],
-                           conversion_path='/home/gaspar/git/pyhacores/playground',)
-    assert sims_close(sim_out,rtol=1e-3, atol=1e-4)
+    x_quantized = [Complex(x, 0, -17) for x in x]
+
+    sim_out = simulate(dut, x_quantized, simulations=['MODEL', 'PYHA', 'RTL'])
+    assert sims_close(sim_out, rtol=1e-4, atol=1e-4)
