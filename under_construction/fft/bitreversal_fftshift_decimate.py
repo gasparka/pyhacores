@@ -44,8 +44,7 @@ class BitreversalFFTshiftDecimate(Hardware):
             if inp.index < self.FFT_SIZE / self.AVG_FREQ_AXIS and self.time_axis_counter == self.AVG_TIME_AXIS:
                 read = self.mem1.delayed_read(inp.index)
                 self.out = DataWithIndex(read, index=inp.index, valid=True)
-                res = Sfix(0.0, 0, -35)
-                self.mem1.delayed_write(inp.index, res)
+                self.mem1.delayed_write(inp.index, Sfix(0.0, 0, -35))
             else:
                 self.out.valid = False
 
@@ -56,8 +55,7 @@ class BitreversalFFTshiftDecimate(Hardware):
             if inp.index < self.FFT_SIZE / self.AVG_FREQ_AXIS and self.time_axis_counter == self.AVG_TIME_AXIS:
                 read = self.mem0.delayed_read(inp.index)
                 self.out = DataWithIndex(read, index=inp.index, valid=True)
-                res = Sfix(0.0, 0, -35)
-                self.mem0.delayed_write(inp.index, res)
+                self.mem0.delayed_write(inp.index, Sfix(0.0, 0, -35))
             else:
                 self.out.valid = False
 
@@ -97,9 +95,9 @@ class BitreversalFFTshiftDecimate(Hardware):
 
 @pytest.mark.parametrize("avg_freq_axis", [2, 4, 8, 16, 32])
 @pytest.mark.parametrize("avg_time_axis", [1, 2, 4, 8])
-@pytest.mark.parametrize("fft_size", [1024, 512, 256, 128])
+@pytest.mark.parametrize("fft_size", [512, 256, 128])
 def test_basic(fft_size, avg_freq_axis, avg_time_axis):
-    packets = avg_time_axis * 2
+    packets = avg_time_axis * 4
     orig_inp = np.random.uniform(-1, 1, fft_size * packets)
     orig_inp = [orig_inp] * packets
 
@@ -111,7 +109,7 @@ def test_basic(fft_size, avg_freq_axis, avg_time_axis):
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
-                                             # 'RTL',
+                                             'RTL',
                                              # 'GATE'
                                              ],
                     output_callback=unpackage,
@@ -210,7 +208,7 @@ def test_synth():
 
 @pytest.mark.parametrize("avg_freq_axis", [2, 4, 8, 16, 32])
 @pytest.mark.parametrize("avg_time_axis", [1, 2, 4, 8])
-@pytest.mark.parametrize("fft_size", [2048, 1024, 512, 256, 128])
+@pytest.mark.parametrize("fft_size", [512, 256, 128])
 def test_low_power(fft_size, avg_freq_axis, avg_time_axis):
     """ Used to force input back to traditional 0,-17 format .. that was a mistake
     because it has critical precision (everything is 0.0) loss in case of small numbers
