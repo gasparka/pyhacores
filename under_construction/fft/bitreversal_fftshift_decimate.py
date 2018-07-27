@@ -83,14 +83,22 @@ class BitreversalFFTshiftDecimate(Hardware):
 
         return out
 
-    def model_main(self, x):
+    def model_main(self, inp):
+        # apply bitreversal
         rev_index = bit_reversed_indexes(self.FFT_SIZE)
-        unrev = x[:, rev_index]
+        unrev = inp[:, rev_index]
+
+        # fftshift
         unshift = np.fft.fftshift(unrev, axes=1)
-        avg = np.reshape(unshift, (len(x), self.FFT_SIZE // self.AVG_FREQ_AXIS, self.AVG_FREQ_AXIS))
-        avg = np.mean(avg, axis=2)
-        print(avg)
-        return avg
+
+        # avg average in freq axis
+        avg_y = np.split(unshift.T, len(unshift.T) // self.AVG_FREQ_AXIS)
+        avg_y = np.average(avg_y, axis=1)
+
+        # avg average in time axis
+        avg_x = np.split(avg_y.T, len(avg_y.T) // self.AVG_TIME_AXIS)
+        avg_x = np.average(avg_x, axis=1)
+        return avg_x
 
 
 @pytest.mark.parametrize("decimation", [2, 4, 8, 16, 32, 64])
@@ -144,7 +152,7 @@ def test_low_power(fft_size, decimation):
     shift = np.fft.fftshift(orig_inp, axes=1)
     input = shift[:, rev_index]
 
-    dut = BitreversalFFTshiftDecimate(fft_size, decimation)
+    dut = BitreversalFFTshiftDecimate(fft_size, decimation, 1)
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
