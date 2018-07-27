@@ -27,39 +27,40 @@ class BitreversalFFTshiftDecimate(Hardware):
 
         self.time_axis_counter = self.AVG_TIME_AXIS
         self.state = True
-        self.mem0 = RAM([Sfix(0.0, 0, -35)] * (fft_size // avg_freq_axis))
-        self.mem1 = RAM([Sfix(0.0, 0, -35)] * (fft_size // avg_freq_axis))
-        self.out = DataWithIndex(Sfix(0.0, 0, -35), 0)
+        self.ram = [RAM([Sfix(0.0, 0, -35)] * (fft_size // avg_freq_axis)),
+                    RAM([Sfix(0.0, 0, -35)] * (fft_size // avg_freq_axis))]
+        self.out_index = 0
+        self.out_valid = False
 
-    def main(self, inp):
+    def work_ram(self, inp, write_ram, read_ram):
+        """ Warning: synth tools may not infer ram if stuff is changed here """
+        # READ-MODIFY-WRITE
         write_index = self.LUT[inp.index]
         write_index_future = self.LUT[(inp.index + 1) % self.FFT_SIZE]
+        read = self.ram[write_ram].delayed_read(write_index_future)
+        res = resize(read + scalb(inp.data, -self.ACCUMULATION_BITS), 0, -35)
+        self.ram[write_ram].delayed_write(write_index, res)
 
-        # TODO: self.state is used for double buffer control, but results in code duplication. Could work with self.mem[self.state], removing all if statements?
+        # output stage
+        self.out_valid = False
+        if inp.index < self.FFT_SIZE / self.AVG_FREQ_AXIS and self.time_axis_counter == self.AVG_TIME_AXIS:
+            _ = self.ram[read_ram].delayed_read(inp.index)
+            self.out_index = inp.index
+            self.out_valid = True
+
+            # clear memory
+            self.ram[read_ram].delayed_write(inp.index, Sfix(0.0, 0, -35))
+
+    def main(self, inp):
+        # Quartus wants this IF to infer RAM...
         if self.state:
-            read = self.mem0.delayed_read(write_index_future)
-            res = resize(read + scalb(inp.data, -self.ACCUMULATION_BITS), 0, -35)
-            self.mem0.delayed_write(write_index, res)
-
-            if inp.index < self.FFT_SIZE / self.AVG_FREQ_AXIS and self.time_axis_counter == self.AVG_TIME_AXIS:
-                read = self.mem1.delayed_read(inp.index)
-                self.out = DataWithIndex(read, index=inp.index, valid=True)
-                self.mem1.delayed_write(inp.index, Sfix(0.0, 0, -35))
-            else:
-                self.out.valid = False
-
+            self.work_ram(inp, 0, 1)
+            read = self.ram[1].get_readregister()
         else:
-            read = self.mem1.delayed_read(write_index_future)
-            res = resize(read + scalb(inp.data, -self.ACCUMULATION_BITS), 0, -35)
-            self.mem1.delayed_write(write_index, res)
-            if inp.index < self.FFT_SIZE / self.AVG_FREQ_AXIS and self.time_axis_counter == self.AVG_TIME_AXIS:
-                read = self.mem0.delayed_read(inp.index)
-                self.out = DataWithIndex(read, index=inp.index, valid=True)
-                self.mem0.delayed_write(inp.index, Sfix(0.0, 0, -35))
-            else:
-                self.out.valid = False
+            self.work_ram(inp, 1, 0)
+            read = self.ram[0].get_readregister()
 
-        if inp.index == self.FFT_SIZE - 1:
+        if inp.index >= self.FFT_SIZE - 1:
             next_counter = self.time_axis_counter - 1
             if next_counter == 0:
                 next_counter = self.AVG_TIME_AXIS
@@ -67,12 +68,7 @@ class BitreversalFFTshiftDecimate(Hardware):
 
             self.time_axis_counter = next_counter
 
-        out = DataWithIndex(read, index=self.out.index, valid=self.out.valid)
-        if self.state:
-            out.data = self.mem1.get_readregister()
-        else:
-            out.data = self.mem0.get_readregister()
-
+        out = DataWithIndex(read, index=self.out_index, valid=self.out_valid)
         return out
 
     def model_main(self, inp):
@@ -159,7 +155,6 @@ def test_synth():
     # avg_freq_axis = 16
     # avg_time_axis = 2
 
-
     # INFO:sim:Analysis & Synthesis Status : Successful - Fri Jul 27 15:35:12 2018
     # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
     # INFO:sim:Revision Name : quartus_project
@@ -179,7 +174,7 @@ def test_synth():
     # avg_freq_axis = 32
     # avg_time_axis = 4
 
-    fft_size = 1024*8
+    fft_size = 1024 * 8
     avg_freq_axis = 32
     avg_time_axis = 4
 
