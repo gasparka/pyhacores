@@ -16,8 +16,8 @@ from scipy import signal
 class Spectrogram(Hardware):
     """ The gain of main/model_main wont match"""
 
-    def __init__(self, nfft, decimate_by=2, window_type='hanning', fft_twiddle_bits=18, window_bits=18):
-        self.DECIMATE_BY = decimate_by
+    def __init__(self, nfft, avg_freq_axis=2, avg_time_axis=1, window_type='hanning', fft_twiddle_bits=18, window_bits=18):
+        self.DECIMATE_BY = avg_freq_axis
         self.NFFT = nfft
         self.WINDOW_TYPE = window_type
 
@@ -27,7 +27,7 @@ class Spectrogram(Hardware):
         self.windower = Windower(nfft, self.WINDOW_TYPE, coefficient_bits=window_bits)
         self.fft = R2SDF(nfft, twiddle_bits=fft_twiddle_bits)
         self.abs = ConjMult()
-        self.dec = BitreversalFFTshiftDecimate(nfft, decimate_by)
+        self.dec = BitreversalFFTshiftDecimate(nfft, avg_freq_axis, avg_time_axis)
 
         self.DELAY = self.dc_removal.DELAY + self.pack.DELAY + self.windower.DELAY + self.fft.DELAY + self.abs.DELAY + self.dec.DELAY
 
@@ -99,10 +99,11 @@ def test_simple():
 
     np.random.seed(0)
     fft_size = 1024 * 8
-    decimation = 32
-    dut = Spectrogram(fft_size, decimation, fft_twiddle_bits=9, window_bits=8)
+    avg_time_axis = 4
 
-    packets = 1
+    dut = Spectrogram(fft_size, avg_freq_axis=32, avg_time_axis=avg_time_axis, fft_twiddle_bits=9, window_bits=8)
+
+    packets = avg_time_axis
     inp = np.random.uniform(-1, 1, fft_size * packets) + np.random.uniform(-1, 1, fft_size * packets) * 1j
     inp *= 0.5 * 0.001
 
