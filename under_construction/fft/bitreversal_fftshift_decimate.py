@@ -40,7 +40,7 @@ class BitreversalFFTshiftDecimate(Hardware):
             read = self.mem0.delayed_read(write_index_future)
             if inp.index == 0:
                 read = 0.0
-            res = resize(read + (inp.data >> self.DECIMATION_BITS), 0, -35)
+            res = resize(read + scalb(inp.data, -self.DECIMATION_BITS), 0, -35)
             self.mem0.delayed_write(write_index, res)
 
             if inp.index < self.FFT_SIZE / self.DECIMATION:
@@ -57,7 +57,7 @@ class BitreversalFFTshiftDecimate(Hardware):
             read = self.mem1.delayed_read(write_index_future)
             if inp.index == 0:
                 read = 0.0
-            res = resize(read + (inp.data >> self.DECIMATION_BITS), 0, -35)
+            res = resize(read + scalb(inp.data, -self.DECIMATION_BITS), 0, -35)
             self.mem1.delayed_write(write_index, res)
             if inp.index < self.FFT_SIZE / self.DECIMATION:
                 read = self.mem0.delayed_read(inp.index)
@@ -111,18 +111,18 @@ def test_basic(fft_size, decimation, packets):
     #     for x in pack:
     #         tmp.append(Sfix(x, 0, -35))
     #     r.append(tmp)
+    with Sfix._float_mode:
+        sims = simulate(dut, input, simulations=['MODEL',
+                                                 'PYHA',
+                                                 # 'RTL',
+                                                 # 'GATE'
+                                                 ],
+                        output_callback=unpackage,
+                        input_callback=package,
+                        conversion_path='/home/gaspar/git/pyhacores/playground'
+                        )
 
-    sims = simulate(dut, input, simulations=['MODEL',
-                                             'PYHA',
-                                             # 'RTL',
-                                             # 'GATE'
-                                             ],
-                    output_callback=unpackage,
-                    input_callback=package,
-                    conversion_path='/home/gaspar/git/pyhacores/playground'
-                    )
-
-    assert sims_close(sims, rtol=1e-4, atol=1e-5)
+    assert sims_close(sims, rtol=1e-2, atol=1e-5)
 
 
 @pytest.mark.parametrize("decimation", [2, 4, 8, 16, 32, 64])
@@ -136,6 +136,39 @@ def test_low_power(fft_size, decimation):
 
     packets = 1
     orig_inp = np.random.uniform(-1, 1, fft_size * packets) * 0.001
+    orig_inp = [float(Sfix(x, 0, -17)) for x in orig_inp]  # Quantize the inputs!
+    orig_inp = [orig_inp] * packets
+
+    rev_index = bit_reversed_indexes(fft_size)
+    shift = np.fft.fftshift(orig_inp, axes=1)
+    input = shift[:, rev_index]
+
+    dut = BitreversalFFTshiftDecimate(fft_size, decimation)
+
+    sims = simulate(dut, input, simulations=['MODEL',
+                                             'PYHA',
+                                             # 'RTL',
+                                             # 'GATE'
+                                             ],
+                    output_callback=unpackage,
+                    input_callback=package,
+                    conversion_path='/home/gaspar/git/pyhacores/playground'
+                    )
+
+    assert sims_close(sims, rtol=1e-32, atol=1e-32)
+
+
+def test_wtf():
+    """ Used to force input back to traditional 0,-17 format .. that was a mistake
+    because it has critical precision (everything is 0.0) loss in case of small numbers
+
+    This tests that the block is not losing any precision..
+    """
+    fft_size = 4
+    decimation = 2
+    packets = 1
+    orig_inp = np.random.uniform(-1, 1, fft_size * packets) * 0.001
+    orig_inp = [0.0001, 0.0002, 0.0003, 0.0004]
     orig_inp = [float(Sfix(x, 0, -17)) for x in orig_inp]  # Quantize the inputs!
     orig_inp = [orig_inp] * packets
 
