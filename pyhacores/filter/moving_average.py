@@ -1,7 +1,7 @@
 from scipy import signal
 
 import pytest
-from pyha import Hardware, Sfix, simulate, sims_close
+from pyha import Hardware, Sfix, simulate, sims_close, Complex, resize, scalb
 from pyha.common.util import is_power2
 import numpy as np
 
@@ -22,10 +22,10 @@ class MovingAverage(Hardware):
         if not is_power2(window_len):
             raise AttributeError('Window length must be power of 2')
 
-        self.mem = [Sfix()] * self.WINDOW_LEN
-        self.sum = Sfix(0, 0, -17)
-
+        self.mem = [Complex()] * self.WINDOW_LEN
         self.WINDOW_POW = int(np.log2(window_len))
+        self.sum = Complex(0, self.WINDOW_POW, -17)
+
         self.DELAY = 1
 
     def main(self, x):
@@ -36,17 +36,13 @@ class MovingAverage(Hardware):
 
         :param x: input to average
         :return: averaged output
-        :rtype: Sfix
         """
-        # divide by window_pow
-        div = x >> self.WINDOW_POW
-
         # add new element to shift register
-        self.mem = [div] + self.mem[:-1]
+        self.mem = [x] + self.mem[:-1]
 
         # calculate new sum
-        self.sum = self.sum + div - self.mem[-1]
-        return self.sum
+        self.sum = self.sum + x - self.mem[-1]
+        return self.sum >> self.WINDOW_POW
 
     def model_main(self, inputs):
         # MA expressed as FIR filter
@@ -104,3 +100,15 @@ def test_noisy_signal():
 
     sim_out = simulate(dut, y)
     assert sims_close(sim_out, atol=1e-4)
+
+
+def test_complex():
+    np.random.seed(0)
+    dut = MovingAverage(window_len=128)
+    N = 2**13
+    x = (np.random.normal(size=N) + np.random.normal(size=N)*1j) * 0.25
+
+    x_quantized = [Complex(x, 0, -17) for x in x]
+
+    sim_out = simulate(dut, x_quantized, simulations=['MODEL', 'PYHA', 'RTL'])
+    assert sims_close(sim_out, rtol=1e-4, atol=1e-4)

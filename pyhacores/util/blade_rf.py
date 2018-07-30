@@ -10,8 +10,7 @@ class BladeRFSource(Hardware):
         self.DELAY = 1
 
     def main(self, real, imag):
-        self.out.real = scalb(real, 4)
-        self.out.imag = scalb(imag, 4)
+        self.out = Complex(scalb(real, 4), scalb(imag, 4))
         return self.out
 
     def model_main(self, i, q):

@@ -1,4 +1,4 @@
-from pyha import Hardware, Sfix, simulate, sims_close
+from pyha import Hardware, Sfix, simulate, sims_close, Complex
 import numpy as np
 
 from pyhacores.filter import MovingAverage
@@ -13,7 +13,7 @@ class DCRemoval(Hardware):
     def __init__(self, window_len):
         self.mavg = [MovingAverage(window_len), MovingAverage(window_len),
                      MovingAverage(window_len), MovingAverage(window_len)]
-        self.y = Sfix(0, 0, -17)
+        self.y = Complex(0, 0, -17)
 
         self.DELAY = 1
 

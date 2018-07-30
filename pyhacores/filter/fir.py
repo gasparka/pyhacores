@@ -2,7 +2,6 @@ from pyha import Hardware, Sfix, simulate, sims_close
 from scipy import signal
 import numpy as np
 
-
 class FIR(Hardware):
     def __init__(self, taps):
         self.DELAY = 2

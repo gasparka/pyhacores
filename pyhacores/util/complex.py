@@ -1,16 +1,16 @@
 import numpy as np
 import pytest
-from pyha import Hardware, Complex, simulate, sims_close
+from pyha import Hardware, Complex, simulate, sims_close, resize
 
 
 class ComplexConjugate(Hardware):
     def __init__(self):
-        self.y = Complex(0, 0, -17, overflow_style='saturate')  # protect against overflow when negating -1
+        self.y = Complex()
         self.DELAY = 1
 
     def main(self, x):
-        self.y.real = x.real
-        self.y.imag = -x.imag
+        new_imag = resize(-x.imag, x.imag, overflow_style='saturate') # protect against overflow when negating -1
+        self.y = Complex(x.real, new_imag)
         return self.y
 
     def model_main(self, x):
@@ -25,8 +25,7 @@ class ComplexMultiply(Hardware):
         self.DELAY = 1
 
     def main(self, a, b):
-        self.y.real = (a.real * b.real) - (a.imag * b.imag)
-        self.y.imag = (a.real * b.imag) + (a.imag * b.real)
+        self.y = a * b
         return self.y
 
     def model_main(self, a, b):
