@@ -14,7 +14,7 @@ class MovingAverage(Hardware):
     :param window_len: Size of the moving average window, must be power of 2
     """
 
-    def __init__(self, window_len):
+    def __init__(self, window_len, dtype=Sfix):
         self.WINDOW_LEN = window_len
         if window_len < 2:
             raise AttributeError('Window length must be >= 2')
@@ -22,9 +22,9 @@ class MovingAverage(Hardware):
         if not is_power2(window_len):
             raise AttributeError('Window length must be power of 2')
 
-        self.mem = [Complex()] * self.WINDOW_LEN
+        self.mem = [dtype()] * self.WINDOW_LEN
         self.WINDOW_POW = int(np.log2(window_len))
-        self.sum = Complex(0, self.WINDOW_POW, -17)
+        self.sum = dtype(0, self.WINDOW_POW, -17)
 
         self.DELAY = 1
 

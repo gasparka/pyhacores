@@ -24,16 +24,15 @@ class MovingAverage(Hardware):
         self.DELAY = 1
 
         self.mem = [dtype()] * self.WINDOW_LEN
-        self.sum = dtype(0, self.WINDOW_POW, -17)
+        self.sum = dtype(0.0, 0, -17 - self.WINDOW_POW)
 
     def main(self, new_sample):
         # add new element to shift register
-        self.mem = [new_sample] + self.mem[:-1]
+        scaled = scalb(new_sample, -self.WINDOW_POW)
+        self.mem = [scaled] + self.mem[:-1]
 
-        # calculate new sum
-        a = self.sum + new_sample - self.mem[-1]
-        self.sum = a
-        return self.sum >> self.WINDOW_POW
+        self.sum = self.sum + scaled - self.mem[-1]
+        return resize(self.sum, 0, -17)
 
     def model_main(self, inputs):
         # can be expressed as FIR filter:
@@ -99,7 +98,7 @@ def test_complex():
     N = 2 ** 13
     x = (np.random.normal(size=N) + np.random.normal(size=N) * 1j) * 0.25
 
-    x_quantized = [Complex(x, 0, -17) for x in x]
+    x_quantized = [Complex(x, 0, -17).val for x in x]
 
-    sim_out = simulate(dut, x_quantized)
+    sim_out = simulate(dut, x_quantized, simulations=['MODEL', 'PYHA'])
     assert sims_close(sim_out, rtol=1e-4, atol=1e-4)
