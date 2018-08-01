@@ -3,13 +3,13 @@ from scipy import signal
 import numpy as np
 
 class FIR(Hardware):
-    def __init__(self, taps):
+    def __init__(self, taps, dtype=Sfix):
         self.DELAY = 2
         self.TAPS = taps
 
         # registers
-        self.acc = [Sfix(left=1, right=-23)] * len(taps)
-        self.out = Sfix(left=0, right=-17, overflow_style='saturate')
+        self.acc = [dtype(left=1, right=-17)] * len(taps)
+        self.out = dtype(left=0, right=-17, overflow_style='saturate')
 
     def main(self, x):
         """ Transposed FIR structure """
