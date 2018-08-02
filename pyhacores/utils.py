@@ -1,6 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+def snr(pure, noisy):
+    sig_pow = np.mean(np.abs(pure))
+    error = np.array(pure) - np.array(noisy)
+    err_pow = np.mean(np.abs(error))
+
+    snr_db = 20 * np.log10(sig_pow / err_pow)
+    return snr_db
+
 def show_freqz(taps):
     from scipy import signal
     w, h = signal.freqz(taps)
