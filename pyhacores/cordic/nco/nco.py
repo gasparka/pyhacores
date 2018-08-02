@@ -10,9 +10,13 @@ class NCO(Hardware):
     Baseband signal generator. Integrated phase accumulator.
     """
 
-    def __init__(self):
-        self.cordic = Cordic(17, CordicMode.ROTATION)
-        self.phase_acc = Sfix(0, 0, -24, wrap_is_ok=True)
+    def __init__(self, cordic_iterations=17):
+        """
+
+        :param cordic_iterations:
+        """
+        self.cordic = Cordic(cordic_iterations, CordicMode.ROTATION)
+        self.phase_acc = Sfix(0, 0, -17, wrap_is_ok=True)
         self.out = Complex(0, 0, -17, overflow_style='saturate')
         self.DELAY = self.cordic.ITERATIONS + 1 + 1
         self.INIT_X = 1.0 / 1.646760  # gets rid of cordic gain, could add amplitude modulation here

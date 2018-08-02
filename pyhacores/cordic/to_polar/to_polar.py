@@ -5,11 +5,11 @@ import numpy as np
 
 class ToPolar(Hardware):
     """
-    Converts IQ to polar form, returning 'abs' and 'angle'. Angle is in [-1 to 1] range i.e divided by np.pi.
+    Converts IQ to polar form, returning 'abs' and 'angle'. Angle is in [-1 to 1] range i.e. divided by np.pi.
     """
 
     def __init__(self):
-        self.core = Cordic(17, CordicMode.VECTORING)
+        self.core = Cordic(13, CordicMode.VECTORING)
         self.y_abs = Sfix(0, 0, -17, overflow_style='saturate')
         self.y_angle = Sfix(0, 0, -17, overflow_style='saturate')
 
