@@ -1,1 +1,1 @@
-from .quadrature_demodulator import QuadratureDemodulator
+from pyhacores.radio.quadrature_demodulator.quadrature_demodulator import QuadratureDemodulator

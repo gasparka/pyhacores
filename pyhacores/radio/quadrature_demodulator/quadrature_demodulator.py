@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from pyha import Hardware, Sfix, simulate, sims_close, Complex
+from pyha import Hardware, Sfix, simulate, sims_close, Complex, resize, left_index, right_index
 
 import pyhacores
 from data import load_iq
@@ -21,33 +21,39 @@ class QuadratureDemodulator(Hardware):
         """
         self.gain = gain
         # components / registers
-        self.conjugate = ComplexConjugate()
-        self.complex_mult = ComplexMultiply()
+        r = -35
+        self.conjugate = Complex(0.0 + 0.0j, 0, r, overflow_style='saturate')
+        self.mult = Complex(0.0 + 0.0j, 0, r)
         self.angle = Angle()
         self.y = Sfix(0, 0, -17, overflow_style='saturate')
 
         # pi term gets us to -1 to +1
-        self.GAIN_SFIX = Sfix(gain * np.pi, 3, -17, round_style='round', overflow_style='saturate')
+        self.GAIN_SFIX = Sfix(gain * np.pi, 3, -14, round_style='round', overflow_style='saturate')
 
-        self.DELAY = self.conjugate.DELAY + \
-                     self.complex_mult.DELAY + \
-                     self.angle.DELAY + 1
+        self.DELAY = 1 + 1 + self.angle.DELAY + 1
+        # self.DELAY = 1 + 1
 
     def main(self, c):
         """
         :type c: Complex
         :rtype: Sfix
         """
-        conj = self.conjugate.main(c)
-        mult = self.complex_mult.main(c, conj)
-        angle = self.angle.main(mult)
+        self.conjugate = Complex(c.real, -c.imag)
+        self.mult = c * self.conjugate
+        angle = self.angle.main(self.mult)
 
+
+        # return self.mult
         self.y = self.GAIN_SFIX * angle
         return self.y
 
+
     def model_main(self, c):
         # this eats one input i.e output has one less element than input
-        demod = np.angle(c[1:] * np.conjugate(c[:-1]))
+        mult = c[1:] * np.conjugate(c[:-1])
+        # return mult
+        demod = np.angle(mult)
+        demod = np.append(demod, 0.0) # compensate for the missing sample
         fix_gain = self.gain * demod
         return fix_gain
 
