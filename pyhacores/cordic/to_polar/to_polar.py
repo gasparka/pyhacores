@@ -8,8 +8,8 @@ class ToPolar(Hardware):
     Converts IQ to polar form, returning 'abs' and 'angle'. Angle is in [-1 to 1] range i.e. divided by np.pi.
     """
 
-    def __init__(self):
-        self.core = Cordic(13, CordicMode.VECTORING)
+    def __init__(self, precision=-17):
+        self.core = Cordic(14, CordicMode.VECTORING, precision=precision)
         self.y_abs = Sfix(0, 0, -17, overflow_style='saturate')
         self.y_angle = Sfix(0, 0, -17, overflow_style='saturate')
 
@@ -38,8 +38,8 @@ class Angle(Hardware):
     Equal to Numpy.angle()/pi
     """
 
-    def __init__(self):
-        self.core = ToPolar()
+    def __init__(self, precision=-17):
+        self.core = ToPolar(precision=precision)
         self.DELAY = self.core.DELAY
 
     def main(self, c):
@@ -56,8 +56,8 @@ class Abs(Hardware):
     Equal to Numpy.abs()
     """
 
-    def __init__(self):
-        self.core = ToPolar()
+    def __init__(self, precision=-17):
+        self.core = ToPolar(precision=precision)
         self.DELAY = self.core.DELAY
 
     def main(self, c):
