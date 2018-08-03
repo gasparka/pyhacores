@@ -15,20 +15,21 @@ class QuadratureDemodulator(Hardware):
     http://gnuradio.org/doc/doxygen-3.7/classgr_1_1analog_1_1quadrature__demod__cf.html#details
 
     """
+
     def __init__(self, gain=1.0):
         """
         :param gain: inverse of tx sensitivity
         """
         self.gain = gain
         # components / registers
-        r = -35
-        self.conjugate = Complex(0.0 + 0.0j, 0, r, overflow_style='saturate')
-        self.mult = Complex(0.0 + 0.0j, 0, r)
-        self.angle = Angle()
+        precision = -35
+        self.conjugate = Complex(0.0 + 0.0j, 0, -17, overflow_style='saturate')
+        self.mult = Complex(0.0 + 0.0j, 0, precision)
+        self.angle = Angle(precision=precision)
         self.y = Sfix(0, 0, -17, overflow_style='saturate')
 
         # pi term gets us to -1 to +1
-        self.GAIN_SFIX = Sfix(gain * np.pi, 3, -14, round_style='round', overflow_style='saturate')
+        self.GAIN_SFIX = Sfix(gain * np.pi, 4, -13, round_style='round', overflow_style='saturate')
 
         self.DELAY = 1 + 1 + self.angle.DELAY + 1
         # self.DELAY = 1 + 1
@@ -42,18 +43,14 @@ class QuadratureDemodulator(Hardware):
         self.mult = c * self.conjugate
         angle = self.angle.main(self.mult)
 
-
-        # return self.mult
         self.y = self.GAIN_SFIX * angle
         return self.y
-
 
     def model_main(self, c):
         # this eats one input i.e output has one less element than input
         mult = c[1:] * np.conjugate(c[:-1])
-        # return mult
         demod = np.angle(mult)
-        demod = np.append(demod, 0.0) # compensate for the missing sample
+        demod = np.append(demod, 0.0)  # compensate for the missing sample
         fix_gain = self.gain * demod
         return fix_gain
 
@@ -78,7 +75,7 @@ def test_fm_demodulation():
     demod_gain = fs / (2 * np.pi * deviation)
 
     inp, expect = make_fm(fs, deviation)
-    expect = expect[1:] # because model eats one sample
+    expect = expect[1:]  # because model eats one sample
 
     dut = QuadratureDemodulator(gain=demod_gain)
     sims = simulate(dut, inp)
@@ -87,9 +84,9 @@ def test_fm_demodulation():
 
 def test_demod_phantom2_signal():
     path = Path(pyhacores.__path__[0]) / '../data/f2404_fs16.896_one_hop.iq'
-    iq = load_iq(str(path))[19000:20000] # this part has only bits..i.e no noisy stuff
+    iq = load_iq(str(path))[19000:20000]  # this part has only bits..i.e no noisy stuff
 
-    dut = QuadratureDemodulator(gain=1/np.pi)
+    dut = QuadratureDemodulator(gain=1 / np.pi)
     sims = simulate(dut, iq)
 
     # import matplotlib.pyplot as plt
@@ -105,9 +102,9 @@ def test_demod_phantom2_signal():
 def test_demod_phantom2_noise():
     pytest.xfail('cant match noisy stuff with fixed point :(')
     path = Path(pyhacores.__path__[0]) / '../data/f2404_fs16.896_one_hop.iq'
-    iq = load_iq(str(path))[:500] # ONLY NOISE
+    iq = load_iq(str(path))[:500]  # ONLY NOISE
 
-    dut = QuadratureDemodulator(gain=1/np.pi)
+    dut = QuadratureDemodulator(gain=1 / np.pi)
     sims = simulate(dut, iq)
 
     # import matplotlib.pyplot as plt
