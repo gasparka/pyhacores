@@ -6,19 +6,25 @@ from data import load_iq
 from pyha import Hardware, simulate, sims_close, Complex, resize, scalb
 import numpy as np
 from pyha.common.shift_register import ShiftRegister
-from under_construction.fft.packager import DataWithIndex, unpackage, package
+from pyhacores.fft.packager import DataWithIndex, unpackage, package
+from pyhacores.fft.util import toggle_bit_reverse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('fft')
 
 
-def W(k, N):
+def W(k, N, inverse=False):
     """ e^-j*2*PI*k*n/N, argument k = k * n """
-    return np.exp(-1j * (2 * np.pi / N) * k)
+    r = np.exp(-1j * (2 * np.pi / N) * k)
+    if inverse:
+        return np.conjugate(r)
+    return r
 
+#
 
 class StageR2SDF(Hardware):
-    def __init__(self, fft_size, twiddle_bits=18):
+    def __init__(self, fft_size, twiddle_bits=18, inverse=False, input_ordering='natural'):
+        self.INVERSE = inverse
         self.FFT_SIZE = fft_size
         self.FFT_HALF = fft_size // 2
 
@@ -26,8 +32,24 @@ class StageR2SDF(Hardware):
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
         self.TWIDDLES = [
-            Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
+            Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
             in range(self.FFT_HALF)]
+
+        if input_ordering == 'bitreversed':
+            tmp = np.array([W(i, self.FFT_SIZE, inverse) for i in range(self.FFT_HALF)])
+            tmp = toggle_bit_reverse(tmp, len(tmp))
+            self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for x in tmp]
+            # if self.FFT_HALF == 4:
+            #     self.shr = ShiftRegister([Complex() for _ in range(1)])
+            #     self.FFT_HALF = 1
+            # elif self.FFT_HALF == 2:
+            #     self.shr = ShiftRegister([Complex() for _ in range(2)])
+            #     self.FFT_HALF = 2
+            # elif self.FFT_HALF == 1:
+            #     self.shr = ShiftRegister([Complex() for _ in range(4)])
+            #     self.FFT_HALF = 4
+            # else:
+            #     assert 0
 
         self.DELAY = 3
 
@@ -45,7 +67,7 @@ class StageR2SDF(Hardware):
     def main(self, x, control):
         self.control_delay = [control] + self.control_delay[:-1]
 
-        # Stage 1: handle the loopback memory, to calculate butterfly additions.
+        # Stage 1: handle the loopback memory - setup data for the butterfly
         # Also fetch the twiddle factor.
         self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
         if not (control & self.FFT_HALF):
@@ -56,27 +78,34 @@ class StageR2SDF(Hardware):
             self.shr.push_next(down)
             self.stage1_out = up
 
-        # Stage 2: complex multiply, only the botton line
-        if not (self.control_delay[0] & self.FFT_HALF) and self.FFT_HALF != 1:
+        # Stage 2: complex multiply
+        if not (self.control_delay[0] & self.FFT_HALF): # TODO REMOVED CHECK
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
 
         # Stage 3: gain control and rounding
-        if self.FFT_HALF > 4:
-            self.stage3_out = scalb(self.stage2_out, -1)
-        else:
+        # if self.FFT_HALF > 4:
+        if self.INVERSE:
             self.stage3_out = self.stage2_out
+        else:
+            self.stage3_out = scalb(self.stage2_out, -1)
+        # else:
+        #     self.stage3_out = self.stage2_out
 
         return self.stage3_out, self.control_delay[-1]
 
 
 class R2SDF(Hardware):
-    def __init__(self, fft_size, twiddle_bits=9):
+    def __init__(self, fft_size, twiddle_bits=9, inverse=False, input_ordering='natural'):
+        self.INPUT_ORDERING = input_ordering
+        self.INVERSE = inverse
         self.FFT_SIZE = fft_size
 
         self.N_STAGES = int(np.log2(fft_size))
-        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits) for pow in reversed(range(self.N_STAGES))]
+
+        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse, input_ordering) for pow in reversed(range(self.N_STAGES))]
+        # self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse) for pow in range(self.N_STAGES)]
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
@@ -86,10 +115,20 @@ class R2SDF(Hardware):
 
     def main(self, x):
         # execute stages
+
+        # if self.INVERSE:
+        #     out = Complex(x.data.imag, x.data.real)
+        # else:
         out = x.data
+
         out_index = x.index
         for stage in self.stages:
             out, out_index = stage.main(out, out_index)
+
+        # if self.INVERSE:
+        #     out = Complex(out.imag, out.real)
+        # else:
+        out = out
 
         self.out.data = out
         self.out.index = (out_index + 1) % self.FFT_SIZE
@@ -97,23 +136,30 @@ class R2SDF(Hardware):
         return self.out
 
     def model_main(self, x):
-        x = x.reshape(-1, self.FFT_SIZE)
-        ffts = np.fft.fft(x, self.FFT_SIZE)
+        x = np.array(x).reshape(-1, self.FFT_SIZE)
+        if self.INVERSE:
+            # apply bit reversing ie. mess up the output order to match radix-2 algorithm
+            # in case of IFFT this actually fixes the bit reversal (assuming inputs are already bit-reversed)
+            for i, _ in enumerate(x):
+                x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
 
-        # apply bit reversing ie. mess up the output order to match radix-2 algorithm
-        # from under_construction.fft.bit_reversal import bit_reversed_indexes
-        def bit_reverse(x, n_bits):
-            return int(np.binary_repr(x, n_bits)[::-1], 2)
+            ffts = np.fft.ifft(x, self.FFT_SIZE)
+            ffts *= self.FFT_SIZE
+        else:
 
-        def bit_reversed_indexes(N):
-            return [bit_reverse(i, int(np.log2(N))) for i in range(N)]
+            # if self.INPUT_ORDERING == 'bitreversed':
+            #     print('rev')
+            #     for i, _ in enumerate(x):
+            #         x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
 
-        rev_index = bit_reversed_indexes(self.FFT_SIZE)
-        for i, _ in enumerate(ffts):
-            ffts[i] = ffts[i][rev_index]
+            ffts = np.fft.fft(x, self.FFT_SIZE)
+            # apply gain control (to avoid overflows in hardware)
+            ffts /= self.FFT_SIZE
 
-        # apply gain control (to avoid overflows in hardware)
-        ffts *= self.GAIN_CORRECTION
+            # if self.INPUT_ORDERING == 'natural':
+            #     print('natural')
+            for i, _ in enumerate(x):
+                x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
 
         return ffts
 
