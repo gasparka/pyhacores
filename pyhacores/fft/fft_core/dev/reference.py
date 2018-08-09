@@ -81,6 +81,11 @@ def test_pyfft(fft_size):
     np.testing.assert_allclose(ref, my)
 
 
+def test_shit():
+    fft_size = 4
+    input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+    my = pyfft_rev(bitrev_input_signal, fft_size)
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8])
 def test_rev(fft_size):

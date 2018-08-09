@@ -3,7 +3,7 @@ import pickle
 import pytest
 
 from data import load_iq
-from pyha import Hardware, simulate, sims_close, Complex, resize, scalb
+from pyha import Hardware, simulate, sims_close, Complex, resize, scalb, Sfix
 import numpy as np
 from pyha.common.shift_register import ShiftRegister
 from pyhacores.fft.packager import DataWithIndex, unpackage, package
@@ -20,7 +20,85 @@ def W(k, N, inverse=False):
         return np.conjugate(r)
     return r
 
-#
+
+class TestRev4:
+    def test_layer4(self):
+        fft_size = 4
+        input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        input_control = [0, 1, 2, 3]
+
+        expected = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
+
+        with Sfix._float_mode:
+            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            sims = simulate(dut, bitrev_input_signal, input_control, simulations=['PYHA'])
+        np.testing.assert_allclose(expected, sims['PYHA'][0])
+
+    def test_layer2(self):
+        fft_size = 2
+        input_signal = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
+        input_control = [0, 1, 2, 3]
+
+        expected = [0.5 + 0.5j, -0.2 + 0.0j, -0.1 - 0.1j, 0.0 - 0.2j]
+        expected = np.array(expected) / 2
+
+        with Sfix._float_mode:
+            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            sims = simulate(dut, input_signal, input_control, simulations=['PYHA'])
+        np.testing.assert_allclose(expected, sims['PYHA'][0])
+
+    def test_full(self):
+        fft_size = 4
+        input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+
+        dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+        rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
+                            simulations=['PYHA'])
+        assert sims_close(rev_sims)
+
+
+class TestRev8:
+    def test_layer8(self):
+        fft_size = 8
+        input_signal = np.array(
+            [0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j, 0.5 + 0.5j, 0.6 + 0.6j, 0.7 + 0.7j, 0.8 + 0.8j])
+        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        input_control = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+
+        expected = [1.24874734 + 0.0111626j, 0.39136762 + 1.91560643j, 0.83156412 + 0.42423318j
+                    - 0.77944665 - 0.06814903j, -0.44107041 - 1.32039658j, -0.89085267 + 0.23050228j,
+                    1.7836063 - 0.462225j, -0.87609342 + 0.68980872j]
+        expected = np.array(expected) / 2
+        with Sfix._float_mode:
+            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            sims = simulate(dut, bitrev_input_signal, input_control, simulations=['PYHA'])
+        np.testing.assert_allclose(expected, sims['PYHA'][0])
+
+    def test_layer2(self):
+        fft_size = 2
+        input_signal = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
+        input_control = [0, 1, 2, 3]
+
+        expected = [0.5 + 0.5j, -0.2 + 0.0j, -0.1 - 0.1j, 0.0 - 0.2j]
+        expected = np.array(expected) / 2
+
+        with Sfix._float_mode:
+            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            sims = simulate(dut, input_signal, input_control, simulations=['PYHA'])
+        np.testing.assert_allclose(expected, sims['PYHA'][0])
+
+    def test_full(self):
+        fft_size = 4
+        input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+
+        dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+        rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
+                            simulations=['PYHA'])
+        assert sims_close(rev_sims)
+
 
 class StageR2SDF(Hardware):
     def __init__(self, fft_size, twiddle_bits=18, inverse=False, input_ordering='natural'):
@@ -32,26 +110,34 @@ class StageR2SDF(Hardware):
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
         self.TWIDDLES = [
-            Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
+            Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
+                    round_style='round') for i
             in range(self.FFT_HALF)]
 
         if input_ordering == 'bitreversed':
-            tmp = np.array([W(i, self.FFT_SIZE, inverse) for i in range(self.FFT_HALF)])
-            tmp = toggle_bit_reverse(tmp, len(tmp))
-            self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for x in tmp]
-            # if self.FFT_HALF == 4:
-            #     self.shr = ShiftRegister([Complex() for _ in range(1)])
-            #     self.FFT_HALF = 1
-            # elif self.FFT_HALF == 2:
-            #     self.shr = ShiftRegister([Complex() for _ in range(2)])
-            #     self.FFT_HALF = 2
-            # elif self.FFT_HALF == 1:
-            #     self.shr = ShiftRegister([Complex() for _ in range(4)])
-            #     self.FFT_HALF = 4
-            # else:
-            #     assert 0
+            if self.FFT_HALF == 4:
+                self.shr = ShiftRegister([Complex() for _ in range(1)])
+                self.FFT_HALF = 1
+            elif self.FFT_HALF == 2:
+                self.shr = ShiftRegister([Complex() for _ in range(1)])
+                self.FFT_HALF = 1
+                # self.TWIDDLES = [
+                #     Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
+                #             round_style='round') for i
+                #     in range(self.FFT_HALF)]
+                # self.CONTROL_MASK = (self.FFT_HALF - 1)
+            elif self.FFT_HALF == 1:
+                self.shr = ShiftRegister([Complex() for _ in range(2)])
+                self.FFT_HALF = 2
+                # self.TWIDDLES = [
+                #     Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
+                #             round_style='round') for i
+                #     in range(self.FFT_HALF)]
+                # self.CONTROL_MASK = (self.FFT_HALF - 1)
+            else:
+                assert 0
 
-        self.DELAY = 3
+        self.DELAY = 3 + self.FFT_HALF
 
         self.control_delay = [0] * self.DELAY
         self.twiddle = self.TWIDDLES[0]
@@ -69,21 +155,27 @@ class StageR2SDF(Hardware):
 
         # Stage 1: handle the loopback memory - setup data for the butterfly
         # Also fetch the twiddle factor.
-        self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
+        # print(f'F{self.FFT_SIZE} {self.twiddle}')
+        self.twiddle = self.TWIDDLES[(self.control_delay[0] & (self.FFT_SIZE // 2)) >> 1]
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
             self.stage1_out = self.shr.peek()
         else:
+            ina = self.shr.peek()
+            inb = x
             up, down = self.butterfly(self.shr.peek(), x)
             self.shr.push_next(down)
             self.stage1_out = up
 
         # Stage 2: complex multiply
-        if not (self.control_delay[0] & self.FFT_HALF): # TODO REMOVED CHECK
+        if not (self.control_delay[0] & self.FFT_HALF):  # TODO REMOVED CHECK
+            # print(f'F{self.FFT_SIZE} {self.stage1_out} \t\t* {self.twiddle}')
             self.stage2_out = self.stage1_out * self.twiddle
         else:
+            # print(f'F{self.FFT_SIZE} {self.stage1_out} \t\t* {self.twiddle} FALSE')
             self.stage2_out = self.stage1_out
 
+        print(f'\t F{self.FFT_SIZE} {self.stage2_out}')
         # Stage 3: gain control and rounding
         # if self.FFT_HALF > 4:
         if self.INVERSE:
@@ -104,12 +196,13 @@ class R2SDF(Hardware):
 
         self.N_STAGES = int(np.log2(fft_size))
 
-        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse, input_ordering) for pow in reversed(range(self.N_STAGES))]
+        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse, input_ordering) for pow in
+                       reversed(range(self.N_STAGES))]
         # self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse) for pow in range(self.N_STAGES)]
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + (self.N_STAGES * self.stages[0].DELAY) + 1 # +1 is output register
+        self.DELAY = (fft_size - 1) + (self.N_STAGES * 3) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
@@ -131,7 +224,7 @@ class R2SDF(Hardware):
         out = out
 
         self.out.data = out
-        self.out.index = (out_index + 1) % self.FFT_SIZE
+        self.out.index = (out_index) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
@@ -147,19 +240,19 @@ class R2SDF(Hardware):
             ffts *= self.FFT_SIZE
         else:
 
-            # if self.INPUT_ORDERING == 'bitreversed':
-            #     print('rev')
-            #     for i, _ in enumerate(x):
-            #         x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
+            if self.INPUT_ORDERING == 'bitreversed':
+                print('rev')
+                for i, _ in enumerate(x):
+                    x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
 
             ffts = np.fft.fft(x, self.FFT_SIZE)
             # apply gain control (to avoid overflows in hardware)
             ffts /= self.FFT_SIZE
 
-            # if self.INPUT_ORDERING == 'natural':
-            #     print('natural')
-            for i, _ in enumerate(x):
-                x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
+            if self.INPUT_ORDERING == 'natural':
+                print('natural')
+                for i, _ in enumerate(ffts):
+                    ffts[i] = toggle_bit_reverse(ffts[i], self.FFT_SIZE)
 
         return ffts
 
@@ -268,7 +361,6 @@ def test_synth():
     # INFO:sim:Embedded Multiplier 9-bit elements : 96
     # INFO:sim:Total PLLs : 0
     # INFO:sim:Running netlist writer.
-
 
     # PIPELINED
     # 10 bit
