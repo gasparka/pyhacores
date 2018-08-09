@@ -31,6 +31,7 @@ def pyfft_natural(inp, fft_size):
 
 def butterfly(a, b, twiddle):
     aa = a + b
+    print(a, b, a - b, twiddle)
     bb = (a - b) * twiddle
     return aa, bb
 
@@ -81,9 +82,17 @@ def test_pyfft(fft_size):
     np.testing.assert_allclose(ref, my)
 
 
-def test_shit():
+def test_shit4():
     fft_size = 4
-    input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+    input_signal = np.array(
+            [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j])
+    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+    my = pyfft_rev(bitrev_input_signal, fft_size)
+
+def test_shit():
+    fft_size = 8
+    input_signal = np.array(
+            [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j, 0.08 + 0.08j])
     bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
     my = pyfft_rev(bitrev_input_signal, fft_size)
 

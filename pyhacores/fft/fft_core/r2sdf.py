@@ -23,20 +23,18 @@ def W(k, N, inverse=False):
 
 class TestRev4:
     def test_layer4(self):
-        fft_size = 4
         input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        bitrev_input_signal = toggle_bit_reverse(input_signal, 4)
         input_control = [0, 1, 2, 3]
 
         expected = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
 
         with Sfix._float_mode:
-            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            dut = StageR2SDF(4, stage_nr=0, twiddle_bits=18, input_ordering='bitreversed')
             sims = simulate(dut, bitrev_input_signal, input_control, simulations=['PYHA'])
         np.testing.assert_allclose(expected, sims['PYHA'][0])
 
     def test_layer2(self):
-        fft_size = 2
         input_signal = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
         input_control = [0, 1, 2, 3]
 
@@ -44,7 +42,7 @@ class TestRev4:
         expected = np.array(expected) / 2
 
         with Sfix._float_mode:
-            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            dut = StageR2SDF(4, stage_nr=1, twiddle_bits=18, input_ordering='bitreversed')
             sims = simulate(dut, input_signal, input_control, simulations=['PYHA'])
         np.testing.assert_allclose(expected, sims['PYHA'][0])
 
@@ -53,45 +51,79 @@ class TestRev4:
         input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
         bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
 
+        expect = [1.00000000e-01 + 1.00000000e-01j, - 4.00000000e-02 + 3.46944695e-18j,
+         - 2.00000000e-02 - 2.00000000e-02j,  3.46944695e-18 - 4.00000000e-02j]
+
         dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
         rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
-                            simulations=['PYHA'])
+                            simulations=['MODEL', 'PYHA'])
         assert sims_close(rev_sims)
 
 
 class TestRev8:
-    def test_layer8(self):
-        fft_size = 8
+    def test_layer1(self):
         input_signal = np.array(
-            [0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j, 0.5 + 0.5j, 0.6 + 0.6j, 0.7 + 0.7j, 0.8 + 0.8j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+            [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j,
+             0.08 + 0.08j])
+        bitrev_input_signal = toggle_bit_reverse(input_signal, 8)
         input_control = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
-        expected = [1.24874734 + 0.0111626j, 0.39136762 + 1.91560643j, 0.83156412 + 0.42423318j
-                    - 0.77944665 - 0.06814903j, -0.44107041 - 1.32039658j, -0.89085267 + 0.23050228j,
-                    1.7836063 - 0.462225j, -0.87609342 + 0.68980872j]
+        expected = [6.00000000e-02 + 6.00000000e-02j, - 4.00000000e-02 - 4.00000000e-02j,
+                    1.00000000e-01 + 1.00000000e-01j, - 4.00000000e-02 + 4.00000000e-02j,
+                    8.00000000e-02 + 8.00000000e-02j, - 5.65685425e-02 - 3.46944695e-18j,
+                    1.20000000e-01 + 1.20000000e-01j, - 6.93889390e-18 + 5.65685425e-02j]
         expected = np.array(expected) / 2
+
+        # (0.01 + 0.01j)(0.05 + 0.05j)(-0.04 - 0.04j)(1 + 0j)
+        # (0.03 + 0.03j)(0.07 + 0.07j)(-0.04 - 0.04j)(0 - 1j)
+        # (0.02 + 0.02j)(0.06 + 0.06j)(-0.04 - 0.04j)(0.7071067811865476 - 0.7071067811865475j)
+        # (0.04 + 0.04j)(0.08 + 0.08j)(-0.04 - 0.04j)(-0.7071067811865475 - 0.7071067811865476j)
+
         with Sfix._float_mode:
-            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            dut = StageR2SDF(8, stage_nr=0, twiddle_bits=18, input_ordering='bitreversed')
             sims = simulate(dut, bitrev_input_signal, input_control, simulations=['PYHA'])
         np.testing.assert_allclose(expected, sims['PYHA'][0])
 
     def test_layer2(self):
-        fft_size = 2
-        input_signal = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
-        input_control = [0, 1, 2, 3]
+        input_control = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        input_signal = [6.00000000e-02 + 6.00000000e-02j, - 4.00000000e-02 - 4.00000000e-02j,
+                        1.00000000e-01 + 1.00000000e-01j, - 4.00000000e-02 + 4.00000000e-02j,
+                        8.00000000e-02 + 8.00000000e-02j, - 5.65685425e-02 - 3.46944695e-18j,
+                        1.20000000e-01 + 1.20000000e-01j, - 6.93889390e-18 + 5.65685425e-02j]
 
-        expected = [0.5 + 0.5j, -0.2 + 0.0j, -0.1 - 0.1j, 0.0 - 0.2j]
+        expected = [1.60000000e-01 + 1.60000000e-01j, -8.00000000e-02 + 6.93889390e-18j,
+                    -4.00000000e-02 - 4.00000000e-02j, 6.93889390e-18 - 8.00000000e-02j,
+                    2.00000000e-01 + 2.00000000e-01j, -5.65685425e-02 + 5.65685425e-02j,
+                    -4.00000000e-02 + 4.00000000e-02j, - 5.65685425e-02 + 5.65685425e-02j]
         expected = np.array(expected) / 2
 
+        # (0.060000000000000005 + 0.060000000000000005j)(0.1 + 0.1j)(-0.04 - 0.04j)(1 + 0j)
+        # (-0.04 - 0.04j)(-0.04000000000000001 + 0.04000000000000001j)(6.938893903907228e-18 - 0.08000000000000002j)(1 + 0j)
+        # (0.08 + 0.08j)(0.12 + 0.12j)(-0.039999999999999994 - 0.039999999999999994j)(6.123233995736766e-17 - 1j)
+        # (-0.056568542494923796 - 3.469446951953614e-18j)(-6.938893903907228e-18 + 0.0565685424949238j)(-0.05656854249492379 - 0.05656854249492381j)(6.123233995736766e-17 - 1j)
+
+
+        # (-0.04 - 0.04j)                                   (1 + 0j)
+        # (6.938893903907228e-18 - 0.08000000000000002j)    (1 + 0j)
+        # (-0.039999999999999994 - 0.039999999999999994j)   (0 - 1j)
+        # (-0.05656854249492379 - 0.05656854249492381j)     (0 - 1j)
+
+        # F4 - 0.04 - 0.04j[0:-17] *            0 - 1j
+        # F4 0 - 0.08j[0:-17] *                 1 + 0j
+        # F4 - 0.04 - 0.04j[0:-17] *            0 - 1j
+        # F4 - 0.0565685 - 0.0565685j[0:-17] *  1 + 0j
+
+
         with Sfix._float_mode:
-            dut = StageR2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+            dut = StageR2SDF(8, stage_nr=1, twiddle_bits=18, input_ordering='bitreversed')
             sims = simulate(dut, input_signal, input_control, simulations=['PYHA'])
         np.testing.assert_allclose(expected, sims['PYHA'][0])
 
     def test_full(self):
-        fft_size = 4
-        input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
+        fft_size = 8
+        input_signal = np.array(
+            [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j,
+             0.08 + 0.08j])
         bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
 
         dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
@@ -100,46 +132,36 @@ class TestRev8:
         assert sims_close(rev_sims)
 
 
-class StageR2SDF(Hardware):
-    def __init__(self, fft_size, twiddle_bits=18, inverse=False, input_ordering='natural'):
-        self.INVERSE = inverse
-        self.FFT_SIZE = fft_size
-        self.FFT_HALF = fft_size // 2
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048])
+def test_fulll(fft_size):
+    input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    input_signal *= 0.125
+    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
 
-        self.CONTROL_MASK = (self.FFT_HALF - 1)
+    dut = R2SDF(fft_size, twiddle_bits=11, input_ordering='bitreversed')
+    rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
+                        simulations=['PYHA'])
+    assert sims_close(rev_sims)
+
+
+class StageR2SDF(Hardware):
+    def __init__(self, fft_size, stage_nr, twiddle_bits=18, inverse=False, input_ordering='natural'):
+        self.STAGE_NR = stage_nr
+        self.INVERSE = inverse
+        self.FFT_HALF = 2 ** stage_nr
+        self.FFT_SIZE = fft_size // self.FFT_HALF
         self.shr = ShiftRegister([Complex() for _ in range(self.FFT_HALF)])
 
-        self.TWIDDLES = [
-            Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
-                    round_style='round') for i
-            in range(self.FFT_HALF)]
-
-        if input_ordering == 'bitreversed':
-            if self.FFT_HALF == 4:
-                self.shr = ShiftRegister([Complex() for _ in range(1)])
-                self.FFT_HALF = 1
-            elif self.FFT_HALF == 2:
-                self.shr = ShiftRegister([Complex() for _ in range(1)])
-                self.FFT_HALF = 1
-                # self.TWIDDLES = [
-                #     Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
-                #             round_style='round') for i
-                #     in range(self.FFT_HALF)]
-                # self.CONTROL_MASK = (self.FFT_HALF - 1)
-            elif self.FFT_HALF == 1:
-                self.shr = ShiftRegister([Complex() for _ in range(2)])
-                self.FFT_HALF = 2
-                # self.TWIDDLES = [
-                #     Complex(W(i, self.FFT_SIZE, inverse), 0, -(twiddle_bits - 1), overflow_style='saturate',
-                #             round_style='round') for i
-                #     in range(self.FFT_HALF)]
-                # self.CONTROL_MASK = (self.FFT_HALF - 1)
-            else:
-                assert 0
+        twid = [W(i, self.FFT_SIZE, inverse) for i in range(self.FFT_SIZE // 2)]
+        twid = toggle_bit_reverse(twid, len(twid))
+        twid = np.roll(twid, 1, axis=0)
+        self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round')
+                         for x in twid]
+        self.CONTROL_MASK = (self.FFT_SIZE - 1)
 
         self.DELAY = 3 + self.FFT_HALF
 
-        self.control_delay = [0] * self.DELAY
+        self.control_delay = [0] * 3
         self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -17 - (twiddle_bits - 1))
@@ -156,7 +178,12 @@ class StageR2SDF(Hardware):
         # Stage 1: handle the loopback memory - setup data for the butterfly
         # Also fetch the twiddle factor.
         # print(f'F{self.FFT_SIZE} {self.twiddle}')
-        self.twiddle = self.TWIDDLES[(self.control_delay[0] & (self.FFT_SIZE // 2)) >> 1]
+        self.twiddle = self.TWIDDLES[(control >> (self.STAGE_NR + 1)) & self.CONTROL_MASK]
+        # if self.STAGE_NR == 1:
+        #     self.twiddle = self.TWIDDLES[(control >> (self.STAGE_NR + 1)) & self.CONTROL_MASK]
+        # else:
+        #     self.twiddle = self.TWIDDLES[(control & self.CONTROL_MASK) >> 1]
+        # self.twiddle = self.TWIDDLES[(self.control_delay[1] & 4) >> 2]
         if not (control & self.FFT_HALF):
             self.shr.push_next(x)
             self.stage1_out = self.shr.peek()
@@ -169,13 +196,13 @@ class StageR2SDF(Hardware):
 
         # Stage 2: complex multiply
         if not (self.control_delay[0] & self.FFT_HALF):  # TODO REMOVED CHECK
-            # print(f'F{self.FFT_SIZE} {self.stage1_out} \t\t* {self.twiddle}')
+            print(f'F{self.FFT_SIZE} {self.stage1_out} \t\t* {self.twiddle}')
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             # print(f'F{self.FFT_SIZE} {self.stage1_out} \t\t* {self.twiddle} FALSE')
             self.stage2_out = self.stage1_out
 
-        print(f'\t F{self.FFT_SIZE} {self.stage2_out}')
+        # print(f'\t F{self.FFT_SIZE} {self.stage2_out}')
         # Stage 3: gain control and rounding
         # if self.FFT_HALF > 4:
         if self.INVERSE:
@@ -196,8 +223,8 @@ class R2SDF(Hardware):
 
         self.N_STAGES = int(np.log2(fft_size))
 
-        self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse, input_ordering) for pow in
-                       reversed(range(self.N_STAGES))]
+        self.stages = [StageR2SDF(self.FFT_SIZE, i, twiddle_bits, inverse, input_ordering)
+                       for i in range(self.N_STAGES)]
         # self.stages = [StageR2SDF(2 ** (pow + 1), twiddle_bits, inverse) for pow in range(self.N_STAGES)]
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
@@ -224,7 +251,7 @@ class R2SDF(Hardware):
         out = out
 
         self.out.data = out
-        self.out.index = (out_index) % self.FFT_SIZE
+        self.out.index = (out_index + 1) % self.FFT_SIZE
         self.out.valid = x.valid
         return self.out
 
