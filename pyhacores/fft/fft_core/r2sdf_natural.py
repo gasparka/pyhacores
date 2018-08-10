@@ -37,6 +37,40 @@ def test_shit2222():
     # INFO:sim:Embedded Multiplier 9-bit elements : 56
     # INFO:sim:Total PLLs : 0
     # INFO:sim:Running netlist writer.
+
+    # INFO:sim:Analysis & Synthesis Status : Successful - Fri Aug 10 15:35:02 2018
+    # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # INFO:sim:Revision Name : quartus_project
+    # INFO:sim:Top-level Entity Name : top
+    # INFO:sim:Family : Cyclone IV E
+    # INFO:sim:Total logic elements : 2,598
+    # INFO:sim:    Total combinational functions : 2,525
+    # INFO:sim:    Dedicated logic registers : 1,347
+    # INFO:sim:Total registers : 1347
+    # INFO:sim:Total pins : 140
+    # INFO:sim:Total virtual pins : 0
+    # INFO:sim:Total memory bits : 8,712
+    # INFO:sim:Embedded Multiplier 9-bit elements : 56
+    # INFO:sim:Total PLLs : 0
+    # INFO:sim:Running netlist writer.
+
+    # INFO:sim:Analysis & Synthesis Status : Successful - Fri Aug 10 15:43:23 2018
+    # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # INFO:sim:Revision Name : quartus_project
+    # INFO:sim:Top-level Entity Name : top
+    # INFO:sim:Family : Cyclone IV E
+    # INFO:sim:Total logic elements : 2,621
+    # INFO:sim:    Total combinational functions : 2,533
+    # INFO:sim:    Dedicated logic registers : 1,408
+    # INFO:sim:Total registers : 1408
+    # INFO:sim:Total pins : 140
+    # INFO:sim:Total virtual pins : 0
+    # INFO:sim:Total memory bits : 8,712
+    # INFO:sim:Embedded Multiplier 9-bit elements : 56
+    # INFO:sim:Total PLLs : 0
+    # INFO:sim:Running netlist writer.
+
+    np.random.seed(0)
     fft_size = 256
     input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
     input_signal *= 0.125
@@ -44,7 +78,7 @@ def test_shit2222():
     dut = R2SDFNATURAL(fft_size, twiddle_bits=18)
     rev_sims = simulate(dut, input_signal, input_callback=package, output_callback=unpackage,
                         simulations=['MODEL', 'PYHA', 'GATE'])
-    assert sims_close(rev_sims)
+    assert sims_close(rev_sims, rtol=1e-3)
 
 
 def test_shit2():
@@ -60,8 +94,20 @@ def test_shit2():
     assert sims_close(rev_sims)
 
 
+def test_shit16():
+    fft_size = 16
+    input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    input_signal *= 0.125
+
+    dut = R2SDFNATURAL(fft_size, twiddle_bits=18)
+    rev_sims = simulate(dut, input_signal, input_callback=package, output_callback=unpackage,
+                        simulations=['MODEL', 'PYHA'])
+    assert sims_close(rev_sims)
+
+
 class StageR2SDFNATURAL(Hardware):
-    def __init__(self, fft_size, twiddle_bits=18):
+    def __init__(self, fft_size, global_fft_size, twiddle_bits=18):
+        self.GLOBAL_FFT_SIZE = global_fft_size
         self.FFT_SIZE = fft_size
         self.FFT_HALF = fft_size // 2
 
@@ -72,14 +118,14 @@ class StageR2SDFNATURAL(Hardware):
             Complex(W(i, self.FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round') for i
             in range(self.FFT_HALF)]
 
-        # self.DELAY = 3 + self.FFT_HALF
-        self.DELAY = 3
+        self.DELAY = 3 + self.FFT_HALF  # 3 comes from stage registers
 
-        self.control_delay = [0] * self.DELAY
         self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -17 - (twiddle_bits - 1))
         self.stage3_out = Complex(0, 0, -17, round_style='round')
+        self.output_index = 0
+        self.mode_delay = False
 
     def butterfly(self, in_up, in_down):
         up = resize(in_up + in_down, 0, -17)
@@ -87,12 +133,13 @@ class StageR2SDFNATURAL(Hardware):
         return up, down
 
     def main(self, x, control):
-        self.control_delay = [control] + self.control_delay[:-1]
-
         # Stage 1: handle the loopback memory, to calculate butterfly additions.
         # Also fetch the twiddle factor.
         self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
-        if not (control & self.FFT_HALF):
+
+        mode = not (control & self.FFT_HALF)
+        self.mode_delay = mode
+        if mode:
             self.shr.push_next(x)
             self.stage1_out = self.shr.peek()
         else:
@@ -101,7 +148,7 @@ class StageR2SDFNATURAL(Hardware):
             self.stage1_out = up
 
         # Stage 2: complex multiply, only the botton line
-        if not (self.control_delay[0] & self.FFT_HALF) and self.FFT_HALF != 1:
+        if self.mode_delay and self.FFT_HALF != 1:
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
@@ -112,11 +159,9 @@ class StageR2SDFNATURAL(Hardware):
         else:
             self.stage3_out = self.stage2_out
 
-        # ind = (control - self.DELAY + self.FFT_HALF) % self.GLOBAL_FFT_SIZE
-        # print(self.FFT_SIZE, ind, control, self.stage3_out)
-        # return self.stage3_out, ind
-        # print(self.FFT_SIZE, self.control_delay[-1], control, self.stage3_out)
-        return self.stage3_out, self.control_delay[-1]
+        # delay index by same amount as data
+        self.output_index = (control - (self.DELAY - 1)) % self.GLOBAL_FFT_SIZE
+        return self.stage3_out, self.output_index
 
 
 class R2SDFNATURAL(Hardware):
@@ -124,11 +169,12 @@ class R2SDFNATURAL(Hardware):
         self.FFT_SIZE = fft_size
 
         self.N_STAGES = int(np.log2(fft_size))
-        self.stages = [StageR2SDFNATURAL(2 ** (pow + 1), twiddle_bits) for pow in reversed(range(self.N_STAGES))]
+        self.stages = [StageR2SDFNATURAL(2 ** (pow + 1), fft_size, twiddle_bits) for pow in
+                       reversed(range(self.N_STAGES))]
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-        self.DELAY = (fft_size - 1) + (self.N_STAGES * self.stages[0].DELAY) + 1  # +1 is output register
+        self.DELAY = (fft_size - 1) + (self.N_STAGES * 3) + 1
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
@@ -140,7 +186,7 @@ class R2SDFNATURAL(Hardware):
             out, out_index = stage.main(out, out_index)
 
         self.out.data = out
-        self.out.index = (out_index + 1) % self.FFT_SIZE
+        self.out.index = out_index
         self.out.valid = x.valid
         return self.out
 

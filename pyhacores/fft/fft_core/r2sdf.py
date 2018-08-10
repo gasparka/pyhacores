@@ -129,21 +129,18 @@ class TestRev8:
 
 @pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256])
 @pytest.mark.parametrize("input_ordering", ['bitreversed', 'natural'])
-def test_fulll(fft_size, input_ordering):
+@pytest.mark.parametrize("inverse", [True, False])
+def test_fulll(fft_size, input_ordering, inverse):
+    np.random.seed(0)
     input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
     input_signal *= 0.125
 
     # bitrev_input_signal = [complex(Complex(x, 0, -17, round_style='round')) for x in bitrev_input_signal]
-    if input_ordering == 'bitreversed':
-        dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
-        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
-        rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
-                            simulations=['MODEL', 'PYHA'])
-    else:
-        dut = R2SDFNATURAL(fft_size, twiddle_bits=18)
-        rev_sims = simulate(dut, input_signal, input_callback=package, output_callback=unpackage,
-                            simulations=['MODEL', 'PYHA'])
-    assert sims_close(rev_sims)
+    dut = R2SDF(fft_size, twiddle_bits=18, input_ordering=input_ordering, inverse=inverse)
+    sims = simulate(dut, input_signal, input_callback=package, output_callback=unpackage,
+                    simulations=['MODEL', 'PYHA'])
+
+    assert sims_close(sims)
 
 
 def test_shit1():
@@ -188,27 +185,41 @@ def test_shit111():
 
 class StageR2SDF(Hardware):
     def __init__(self, global_fft_size, stage_nr, twiddle_bits=18, inverse=False, input_ordering='natural'):
+        self.INVERSE = inverse
         self.GLOBAL_FFT_SIZE = global_fft_size
         self.STAGE_NR = stage_nr
-        self.INVERSE = inverse
-        self.INPUT_STRIDE = 2 ** stage_nr  # distance from butterfly input a to b
-        self.STAGE_FFT_SIZE = global_fft_size // self.INPUT_STRIDE
-        self.IS_TRIVIAL_MULTIPLIER = self.STAGE_FFT_SIZE // 2 == 1  # is mult by 1.0?
 
-        twid = [W(i, self.STAGE_FFT_SIZE, inverse) for i in range(self.STAGE_FFT_SIZE // 2)]
-        twid = toggle_bit_reverse(twid, len(twid))
-        twid = np.roll(twid, 1, axis=0)
-        self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round')
-                         for x in twid]
-        self.CONTROL_MASK = (self.STAGE_FFT_SIZE - 1)
+        if input_ordering == 'bitreversed':
+            self.IS_NATURAL_ORDER = False
+            self.INPUT_STRIDE = 2 ** stage_nr  # distance from butterfly input a to b
+            self.LOCAL_FFT_SIZE = global_fft_size // self.INPUT_STRIDE
+            self.CONTROL_MASK = (self.LOCAL_FFT_SIZE - 1)
+
+            twid = [W(i, self.LOCAL_FFT_SIZE, inverse) for i in range(self.LOCAL_FFT_SIZE // 2)]
+            twid = toggle_bit_reverse(twid, len(twid))
+            twid = np.roll(twid, 1, axis=0)
+            self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round')
+                             for x in twid]
+
+        elif input_ordering == 'natural':
+            self.IS_NATURAL_ORDER = True
+            self.LOCAL_FFT_SIZE = global_fft_size // 2 ** stage_nr
+            self.INPUT_STRIDE = self.LOCAL_FFT_SIZE // 2
+            self.CONTROL_MASK = (self.INPUT_STRIDE - 1)
+
+            self.TWIDDLES = [Complex(W(i, self.LOCAL_FFT_SIZE), 0, -(twiddle_bits - 1), overflow_style='saturate',
+                                     round_style='round')
+                             for i in range(self.INPUT_STRIDE)]
+
         self.DELAY = 3 + self.INPUT_STRIDE
-
+        self.IS_TRIVIAL_MULTIPLIER = len(self.TWIDDLES) == 1 # mult by 1.0, useless
         self.shr = ShiftRegister([Complex() for _ in range(self.INPUT_STRIDE)])
-        self.control_delay = [0] * self.DELAY
         self.twiddle = self.TWIDDLES[0]
         self.stage1_out = Complex(0, 0, -17)
         self.stage2_out = Complex(0, 0, -17 - (twiddle_bits - 1))
         self.stage3_out = Complex(0, 0, -17, round_style='round')
+        self.output_index = 0
+        self.mode_delay = False
 
     def butterfly(self, in_up, in_down):
         up = resize(in_up + in_down, 0, -17)
@@ -216,21 +227,24 @@ class StageR2SDF(Hardware):
         return up, down
 
     def main(self, x, control):
-        self.control_delay = [control] + self.control_delay[:-1]
-
         # Stage 1: handle the loopback memory - setup data for the butterfly
-        # Also fetch the twiddle factor.
-        self.twiddle = self.TWIDDLES[(control >> (self.STAGE_NR + 1)) & self.CONTROL_MASK]
-        if not (control & self.INPUT_STRIDE):
+        mode = not (control & self.INPUT_STRIDE)
+        self.mode_delay = mode
+        if mode:
             self.shr.push_next(x)
             self.stage1_out = self.shr.peek()
         else:
             up, down = self.butterfly(self.shr.peek(), x)
             self.shr.push_next(down)
             self.stage1_out = up
+        # Also fetch the twiddle factor.
+        if self.IS_NATURAL_ORDER:
+            self.twiddle = self.TWIDDLES[control & self.CONTROL_MASK]
+        else:
+            self.twiddle = self.TWIDDLES[(control >> (self.STAGE_NR + 1)) & self.CONTROL_MASK]
 
         # Stage 2: complex multiply
-        if not (self.control_delay[0] & self.INPUT_STRIDE) and not self.IS_TRIVIAL_MULTIPLIER:
+        if self.mode_delay and not self.IS_TRIVIAL_MULTIPLIER:
             self.stage2_out = self.stage1_out * self.twiddle
         else:
             self.stage2_out = self.stage1_out
@@ -242,12 +256,9 @@ class StageR2SDF(Hardware):
         else:
             self.stage3_out = scalb(self.stage2_out, -1)
 
-        ind = (control - (3 + self.INPUT_STRIDE)) % self.GLOBAL_FFT_SIZE
-        # print(self.STAGE_FFT_SIZE, ind, control, self.stage3_out)
-        return self.stage3_out, ind
-
-        # print(self.STAGE_FFT_SIZE, self.control_delay[-1], control, self.stage3_out)
-        # return self.stage3_out, self.control_delay[-1]
+        # delay index by same amount as data
+        self.output_index = (control - (self.DELAY - 1)) % self.GLOBAL_FFT_SIZE
+        return self.stage3_out, self.output_index
 
 
 class R2SDF(Hardware):
@@ -255,35 +266,21 @@ class R2SDF(Hardware):
         self.INPUT_ORDERING = input_ordering
         self.INVERSE = inverse
         self.FFT_SIZE = fft_size
-
         self.N_STAGES = int(np.log2(fft_size))
+        # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
+        self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
+        self.DELAY = (fft_size - 1) + (self.N_STAGES * 3) + 1
 
         self.stages = [StageR2SDF(self.FFT_SIZE, i, twiddle_bits, inverse, input_ordering)
                        for i in range(self.N_STAGES)]
-
-        # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
-        self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
-
-        self.DELAY = (fft_size - 1) + (self.N_STAGES * 3) + 1  # +1 is output register
-        # self.DELAY = (fft_size - 1) + (self.N_STAGES * self.stages[0].DELAY) + 1  # +1 is output register
-
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
     def main(self, x):
         # execute stages
-
-        # if self.INVERSE:
-        #     out = Complex(x.data.imag, x.data.real)
-        # else:
         out = x.data
         out_index = x.index
         for stage in self.stages:
             out, out_index = stage.main(out, out_index)
-
-        # if self.INVERSE:
-        #     out = Complex(out.imag, out.real)
-        # else:
-        out = out
 
         self.out.data = out
         self.out.index = out_index
@@ -294,7 +291,6 @@ class R2SDF(Hardware):
         x = np.array(x).reshape(-1, self.FFT_SIZE)
 
         if self.INPUT_ORDERING == 'bitreversed':
-            print('rev')
             for i, _ in enumerate(x):
                 x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
 
@@ -306,7 +302,6 @@ class R2SDF(Hardware):
             ffts /= self.FFT_SIZE
 
         if self.INPUT_ORDERING == 'natural':
-            print('natural')
             for i, _ in enumerate(ffts):
                 ffts[i] = toggle_bit_reverse(ffts[i], self.FFT_SIZE)
 
