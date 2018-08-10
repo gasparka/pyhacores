@@ -19,7 +19,7 @@ def package(data):
     # return ret
 
     ret = []
-    if isinstance(data[0], list):
+    if isinstance(data[0], (list, np.ndarray)):
         for row in data:
             ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
     else:

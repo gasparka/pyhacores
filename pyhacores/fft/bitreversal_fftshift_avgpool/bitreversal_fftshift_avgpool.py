@@ -2,22 +2,26 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Sfix, resize, scalb
 import numpy as np
 from pyha.common.ram import RAM
-from under_construction.fft.bit_reversal_fftshift import bit_reversed_indexes
-from under_construction.fft.packager import DataWithIndex, unpackage, package
+
+from pyhacores.fft.packager import DataWithIndex, unpackage, package
+from pyhacores.fft.util import toggle_bit_reverse
 
 
-def build_lut(fft_size, decimation):
-    rev_index = bit_reversed_indexes(fft_size)
+def build_lut(fft_size, freq_axis_decimation):
+    """ This LUT fixes the bit-reversal and performs fftshift. It defines th RAM write addresses."""
     orig_inp = np.array(list(range(fft_size)))
     shift = np.fft.fftshift(orig_inp)
-    rev = shift[rev_index]
-    lut = rev // decimation
+    rev = toggle_bit_reverse(shift)
+    lut = rev // freq_axis_decimation
     return lut
 
 
-class BitreversalFFTshiftDecimate(Hardware):
+class BitreversalFFTshiftAVGPool(Hardware):
+    """ This core is meant to be used in spectrogram applications.
+    It performs bitreversal, fftshift and average pooling in one memory.
+    """
     def __init__(self, fft_size, avg_freq_axis, avg_time_axis):
-        assert avg_freq_axis > 1
+        assert not (avg_freq_axis == 1 and avg_freq_axis == 1)
         self.AVG_FREQ_AXIS = avg_freq_axis
         self.AVG_TIME_AXIS = avg_time_axis
         self.ACCUMULATION_BITS = int(np.log2(avg_freq_axis * avg_time_axis))
@@ -73,46 +77,62 @@ class BitreversalFFTshiftDecimate(Hardware):
 
     def model_main(self, inp):
         # apply bitreversal
-        rev_index = bit_reversed_indexes(self.FFT_SIZE)
-        unrev = inp[:, rev_index]
+        unrev = toggle_bit_reverse(inp)
 
         # fftshift
         unshift = np.fft.fftshift(unrev, axes=1)
 
-        # avg average in freq axis
+        # average in freq axis
         avg_y = np.split(unshift.T, len(unshift.T) // self.AVG_FREQ_AXIS)
         avg_y = np.average(avg_y, axis=1)
 
-        # avg average in time axis
+        # average in time axis
         avg_x = np.split(avg_y.T, len(avg_y.T) // self.AVG_TIME_AXIS)
         avg_x = np.average(avg_x, axis=1)
         return avg_x
 
 
+def test_shit():
+    from scipy import signal
+    fft_size = 128
+    avg_freq_axis = 2
+    file = '/home/gaspar/git/pyhacores/data/low_power_ph3.raw'
+    from pyhacores.utils import load_iq
+    orig_inp = load_iq(file)[2000000:3500000]
+    orig_inp -= np.mean(orig_inp)
+    # orig_inp = orig_inp[:len(orig_inp)//8]
+
+    _, _, spectro_out = signal.spectrogram(orig_inp, 1, nperseg=fft_size, return_onesided=False, detrend=False,
+                                           noverlap=0, window='hann')
+
+    # fftshift
+    spectro_out = np.roll(spectro_out, fft_size // 2, axis=0)
+
+    # avg decimation
+    x = np.split(spectro_out, len(spectro_out) // avg_freq_axis)
+    golden_output = np.average(x, axis=1)
+
+
+    from pyhacores.fft.util import toggle_bit_reverse
+
+    input_signal = toggle_bit_reverse(spectro_out.T).T
+    input_signal = np.fft.fftshift(input_signal)
+
+    dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, 1)
+    sims = simulate(dut, input_signal.T, simulations=['MODEL', 'PYHA'], output_callback=unpackage, input_callback=package)
+    assert sims_close(sims, rtol=1e-2, atol=1e-5)
+
+
+
+
 @pytest.mark.parametrize("avg_freq_axis", [2, 4, 8, 16, 32])
 @pytest.mark.parametrize("avg_time_axis", [1, 2, 4, 8])
 @pytest.mark.parametrize("fft_size", [512, 256, 128])
-def test_basic(fft_size, avg_freq_axis, avg_time_axis):
+def test_all(fft_size, avg_freq_axis, avg_time_axis):
     packets = avg_time_axis * 4
-    orig_inp = np.random.uniform(-1, 1, fft_size * packets)
-    orig_inp = [orig_inp] * packets
-
-    rev_index = bit_reversed_indexes(fft_size)
-    shift = np.fft.fftshift(orig_inp, axes=1)
-    input = shift[:, rev_index]
-
-    dut = BitreversalFFTshiftDecimate(fft_size, avg_freq_axis, avg_time_axis)
-
-    sims = simulate(dut, input, simulations=['MODEL',
-                                             'PYHA',
-                                             'RTL',
-                                             # 'GATE'
-                                             ],
-                    output_callback=unpackage,
-                    input_callback=package,
-                    # conversion_path='/home/gaspar/git/pyhacores/playground'
-                    )
-
+    orig_inp = np.random.uniform(-1, 1, size=(packets, fft_size))
+    dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, avg_time_axis)
+    sims = simulate(dut, orig_inp, simulations=['MODEL', 'PYHA'], output_callback=unpackage, input_callback=package)
     assert sims_close(sims, rtol=1e-2, atol=1e-5)
 
 
@@ -186,7 +206,7 @@ def test_synth():
     shift = np.fft.fftshift(orig_inp, axes=1)
     input = shift[:, rev_index]
 
-    dut = BitreversalFFTshiftDecimate(fft_size, avg_freq_axis, avg_time_axis)
+    dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, avg_time_axis)
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',
@@ -220,7 +240,7 @@ def test_low_power(fft_size, avg_freq_axis, avg_time_axis):
     shift = np.fft.fftshift(orig_inp, axes=1)
     input = shift[:, rev_index]
 
-    dut = BitreversalFFTshiftDecimate(fft_size, avg_freq_axis, avg_time_axis)
+    dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, avg_time_axis)
 
     sims = simulate(dut, input, simulations=['MODEL',
                                              'PYHA',

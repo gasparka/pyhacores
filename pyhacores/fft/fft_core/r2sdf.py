@@ -28,7 +28,7 @@ class StageR2SDF(Hardware):
             self.CONTROL_MASK = (self.LOCAL_FFT_SIZE - 1)
 
             twid = [W(i, self.LOCAL_FFT_SIZE) for i in range(self.LOCAL_FFT_SIZE // 2)]
-            twid = toggle_bit_reverse(twid, len(twid))
+            twid = toggle_bit_reverse(twid)
             twid = np.roll(twid, 1, axis=0)
             self.TWIDDLES = [Complex(x, 0, -(twiddle_bits - 1), overflow_style='saturate', round_style='round')
                              for x in twid]
@@ -131,8 +131,7 @@ class R2SDF(Hardware):
         x = np.array(x).reshape(-1, self.FFT_SIZE)
 
         if self.INPUT_ORDERING == 'bitreversed':
-            for i, _ in enumerate(x):
-                x[i] = toggle_bit_reverse(x[i], self.FFT_SIZE)
+            x = toggle_bit_reverse(x)
 
         if self.INVERSE:
             ffts = np.fft.ifft(x, self.FFT_SIZE)
@@ -142,8 +141,7 @@ class R2SDF(Hardware):
             ffts /= self.FFT_SIZE
 
         if self.INPUT_ORDERING == 'natural':
-            for i, _ in enumerate(ffts):
-                ffts[i] = toggle_bit_reverse(ffts[i], self.FFT_SIZE)
+            ffts = toggle_bit_reverse(ffts)
 
         return ffts
 
@@ -176,7 +174,7 @@ class TestRev8:
         input_signal = np.array(
             [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j,
              0.08 + 0.08j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, 8)
+        bitrev_input_signal = toggle_bit_reverse(input_signal)
         input_control = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
         expected = [6.00000000e-02 + 6.00000000e-02j, - 4.00000000e-02 - 4.00000000e-02j,
@@ -233,7 +231,7 @@ class TestRev8:
         input_signal = np.array(
             [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j,
              0.08 + 0.08j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        bitrev_input_signal = toggle_bit_reverse(input_signal)
 
         dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
         rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
@@ -244,7 +242,7 @@ class TestRev8:
 class TestRev4:
     def test_layer4(self):
         input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, 4)
+        bitrev_input_signal = toggle_bit_reverse(input_signal)
         input_control = [0, 1, 2, 3]
 
         expected = [0.2 + 0.2j, -0.1 - 0.1j, 0.3 + 0.3j, -0.1 + 0.1j]
@@ -269,7 +267,7 @@ class TestRev4:
     def test_full(self):
         fft_size = 4
         input_signal = np.array([0.1 + 0.1j, 0.2 + 0.2j, 0.3 + 0.3j, 0.4 + 0.4j])
-        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        bitrev_input_signal = toggle_bit_reverse(input_signal)
 
         dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
         rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
