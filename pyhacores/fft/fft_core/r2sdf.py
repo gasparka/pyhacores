@@ -99,7 +99,6 @@ class TestRev8:
         # (0.08 + 0.08j)(0.12 + 0.12j)(-0.039999999999999994 - 0.039999999999999994j)(6.123233995736766e-17 - 1j)
         # (-0.056568542494923796 - 3.469446951953614e-18j)(-6.938893903907228e-18 + 0.0565685424949238j)(-0.05656854249492379 - 0.05656854249492381j)(6.123233995736766e-17 - 1j)
 
-
         # (-0.04 - 0.04j)                                   (1 + 0j)
         # (6.938893903907228e-18 - 0.08000000000000002j)    (1 + 0j)
         # (-0.039999999999999994 - 0.039999999999999994j)   (0 - 1j)
@@ -109,7 +108,6 @@ class TestRev8:
         # F4 0 - 0.08j[0:-17] *                 1 + 0j
         # F4 - 0.04 - 0.04j[0:-17] *            0 - 1j
         # F4 - 0.0565685 - 0.0565685j[0:-17] *  1 + 0j
-
 
         with Sfix._float_mode:
             dut = StageR2SDF(8, stage_nr=1, twiddle_bits=18, input_ordering='bitreversed')
@@ -129,13 +127,31 @@ class TestRev8:
         assert sims_close(rev_sims)
 
 
-@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256, 512])
-def test_fulll(fft_size):
+@pytest.mark.parametrize("fft_size", [2, 4, 8, 16, 32, 64, 128, 256])
+@pytest.mark.parametrize("input_ordering", ['bitreversed', 'natural'])
+def test_fulll(fft_size, input_ordering):
     input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
     input_signal *= 0.125
-    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
 
     # bitrev_input_signal = [complex(Complex(x, 0, -17, round_style='round')) for x in bitrev_input_signal]
+    if input_ordering == 'bitreversed':
+        dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+        bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+        rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
+                            simulations=['MODEL', 'PYHA'])
+    else:
+        dut = R2SDFNATURAL(fft_size, twiddle_bits=18)
+        rev_sims = simulate(dut, input_signal, input_callback=package, output_callback=unpackage,
+                            simulations=['MODEL', 'PYHA'])
+    assert sims_close(rev_sims)
+
+
+def test_shit1():
+    fft_size = 8
+    input_signal = np.array(
+        [0.01 + 0.01j, 0.02 + 0.02j, 0.03 + 0.03j, 0.04 + 0.04j, 0.05 + 0.05j, 0.06 + 0.06j, 0.07 + 0.07j,
+         0.08 + 0.08j])
+    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
 
     dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
     rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
@@ -143,13 +159,41 @@ def test_fulll(fft_size):
     assert sims_close(rev_sims)
 
 
+def test_shit111():
+    # INFO:sim:Analysis & Synthesis Status : Successful - Fri Aug 10 15:08:50 2018
+    # INFO:sim:Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
+    # INFO:sim:Revision Name : quartus_project
+    # INFO:sim:Top-level Entity Name : top
+    # INFO:sim:Family : Cyclone IV E
+    # INFO:sim:Total logic elements : 2,683
+    # INFO:sim:    Total combinational functions : 2,537
+    # INFO:sim:    Dedicated logic registers : 1,492
+    # INFO:sim:Total registers : 1492
+    # INFO:sim:Total pins : 140
+    # INFO:sim:Total virtual pins : 0
+    # INFO:sim:Total memory bits : 8,640
+    # INFO:sim:Embedded Multiplier 9-bit elements : 56
+    # INFO:sim:Total PLLs : 0
+    # INFO:sim:Running netlist writer.
+    fft_size = 256
+    input_signal = np.random.uniform(-1, 1, fft_size) + np.random.uniform(-1, 1, fft_size) * 1j
+    input_signal *= 0.125
+    bitrev_input_signal = toggle_bit_reverse(input_signal, fft_size)
+
+    dut = R2SDF(fft_size, twiddle_bits=18, input_ordering='bitreversed')
+    rev_sims = simulate(dut, bitrev_input_signal, input_callback=package, output_callback=unpackage,
+                        simulations=['MODEL', 'PYHA', 'GATE'])
+    assert sims_close(rev_sims)
+
+
 class StageR2SDF(Hardware):
     def __init__(self, global_fft_size, stage_nr, twiddle_bits=18, inverse=False, input_ordering='natural'):
+        self.GLOBAL_FFT_SIZE = global_fft_size
         self.STAGE_NR = stage_nr
         self.INVERSE = inverse
-        self.INPUT_STRIDE = 2 ** stage_nr # distance from butterfly input a to b
+        self.INPUT_STRIDE = 2 ** stage_nr  # distance from butterfly input a to b
         self.STAGE_FFT_SIZE = global_fft_size // self.INPUT_STRIDE
-        self.IS_TRIVIAL_MULTIPLIER = self.STAGE_FFT_SIZE // 2 == 1 # is mult by 1.0?
+        self.IS_TRIVIAL_MULTIPLIER = self.STAGE_FFT_SIZE // 2 == 1  # is mult by 1.0?
 
         twid = [W(i, self.STAGE_FFT_SIZE, inverse) for i in range(self.STAGE_FFT_SIZE // 2)]
         twid = toggle_bit_reverse(twid, len(twid))
@@ -198,7 +242,12 @@ class StageR2SDF(Hardware):
         else:
             self.stage3_out = scalb(self.stage2_out, -1)
 
-        return self.stage3_out, self.control_delay[-1]
+        ind = (control - (3 + self.INPUT_STRIDE)) % self.GLOBAL_FFT_SIZE
+        # print(self.STAGE_FFT_SIZE, ind, control, self.stage3_out)
+        return self.stage3_out, ind
+
+        # print(self.STAGE_FFT_SIZE, self.control_delay[-1], control, self.stage3_out)
+        # return self.stage3_out, self.control_delay[-1]
 
 
 class R2SDF(Hardware):
@@ -214,7 +263,9 @@ class R2SDF(Hardware):
 
         # Note: it is NOT correct to use this gain after the magnitude/abs operation, it has to be applied to complex values
         self.GAIN_CORRECTION = 2 ** (0 if self.N_STAGES - 3 < 0 else -(self.N_STAGES - 3))
+
         self.DELAY = (fft_size - 1) + (self.N_STAGES * 3) + 1  # +1 is output register
+        # self.DELAY = (fft_size - 1) + (self.N_STAGES * self.stages[0].DELAY) + 1  # +1 is output register
 
         self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
 
@@ -225,7 +276,6 @@ class R2SDF(Hardware):
         #     out = Complex(x.data.imag, x.data.real)
         # else:
         out = x.data
-
         out_index = x.index
         for stage in self.stages:
             out, out_index = stage.main(out, out_index)
@@ -236,7 +286,7 @@ class R2SDF(Hardware):
         out = out
 
         self.out.data = out
-        self.out.index = (out_index) % self.FFT_SIZE
+        self.out.index = out_index
         self.out.valid = x.valid
         return self.out
 
