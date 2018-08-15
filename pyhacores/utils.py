@@ -41,6 +41,7 @@ def show_plot():
 
 
 def imshow(im, rescale=True):
+    im = np.array(im)
     if rescale:
         from skimage.exposure import exposure
         p2, p98 = np.percentile(im, (2, 98))

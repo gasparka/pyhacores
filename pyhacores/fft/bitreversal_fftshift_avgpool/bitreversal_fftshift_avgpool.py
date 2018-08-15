@@ -1,5 +1,5 @@
 import pytest
-from pyha import Hardware, simulate, sims_close, Sfix, resize, scalb
+from pyha import Hardware, simulate, sims_close, Sfix, resize, scalb, Complex
 import numpy as np
 from pyha.common.ram import RAM
 
@@ -21,6 +21,8 @@ class BitreversalFFTshiftAVGPool(Hardware):
     It performs bitreversal, fftshift and average pooling in one memory.
     """
     def __init__(self, fft_size, avg_freq_axis, avg_time_axis):
+        self._simulation_input_types = DataWithIndex(Sfix(0.0, 0, -35))
+
         assert not (avg_freq_axis == 1 and avg_freq_axis == 1)
         self.AVG_FREQ_AXIS = avg_freq_axis
         self.AVG_TIME_AXIS = avg_time_axis
@@ -37,7 +39,6 @@ class BitreversalFFTshiftAVGPool(Hardware):
         self.out_valid = False
 
     def work_ram(self, inp, write_ram, read_ram):
-        """ Warning: synth tools may not infer ram if stuff is changed here """
         # READ-MODIFY-WRITE
         write_index = self.LUT[inp.index]
         write_index_future = self.LUT[(inp.index + 1) % self.FFT_SIZE]
@@ -98,7 +99,7 @@ def test_shit():
     avg_freq_axis = 2
     file = '/home/gaspar/git/pyhacores/data/low_power_ph3.raw'
     from pyhacores.utils import load_iq
-    orig_inp = load_iq(file)[2000000:3500000]
+    orig_inp = load_iq(file)[2000000:2100000]
     orig_inp -= np.mean(orig_inp)
     # orig_inp = orig_inp[:len(orig_inp)//8]
 
@@ -119,7 +120,7 @@ def test_shit():
     input_signal = np.fft.fftshift(input_signal)
 
     dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, 1)
-    sims = simulate(dut, input_signal.T, simulations=['MODEL', 'PYHA'], output_callback=unpackage, input_callback=package)
+    sims = simulate(dut, input_signal.T, input_types=[Sfix(0, 0, -35)], simulations=['MODEL', 'PYHA'], output_callback=unpackage, input_callback=package)
     assert sims_close(sims, rtol=1e-2, atol=1e-5)
 
 

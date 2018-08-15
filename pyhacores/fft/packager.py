@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex, Sfix
+from pyha import Hardware, simulate, sims_close, Complex, Sfix, default_complex
 
 
 class DataWithIndex(Hardware):
@@ -8,6 +8,26 @@ class DataWithIndex(Hardware):
         self.data = data
         self.index = index
         self.valid = valid
+
+
+class Packager:
+    def __init__(self, dtype=default_complex, package_size=None):
+        self.package_size = package_size
+        self.dtype = dtype
+
+    def work_on_inputs(self, inputs):
+        if self.package_size is None:
+            self.package_size = inputs.shape[-1]
+
+        ret = []
+        if isinstance(inputs[0], (list, np.ndarray)):
+            for row in inputs:
+                ret += [DataWithIndex(self.dtype(elem), i) for i, elem in enumerate(row)]
+        else:
+            ret += [DataWithIndex(elem, i) for i, elem in enumerate(inputs)]
+
+        return ret
+
 
 
 def package(data):
