@@ -3,7 +3,7 @@ from pyha import Hardware, simulate, sims_close, Sfix, resize, scalb
 import numpy as np
 from pyha.common.ram import RAM
 
-from pyhacores.fft.packager.packager import DataIndexValid, DataIndexValidPackager, DataIndexValidDePackager
+from pyhacores.fft import DataIndexValidPackager, DataIndexValidDePackager, DataIndexValid
 from pyhacores.utils import toggle_bit_reverse
 
 
@@ -94,44 +94,13 @@ class BitreversalFFTshiftAVGPool(Hardware):
         return avg_x
 
 
-def test_shit():
-    from scipy import signal
-    fft_size = 128
-    avg_freq_axis = 2
-    file = '/home/gaspar/git/pyhacores/data/low_power_ph3.raw'
-    from pyhacores.utils import load_iq
-    orig_inp = load_iq(file)[2000000:2010000]
-    orig_inp -= np.mean(orig_inp)
-    # orig_inp = orig_inp[:len(orig_inp)//8]
-
-    _, _, spectro_out = signal.spectrogram(orig_inp, 1, nperseg=fft_size, return_onesided=False, detrend=False,
-                                           noverlap=0, window='hann')
-
-    # fftshift
-    spectro_out = np.roll(spectro_out, fft_size // 2, axis=0)
-
-    # avg decimation
-    x = np.split(spectro_out, len(spectro_out) // avg_freq_axis)
-    golden_output = np.average(x, axis=1)
-
-
-    from pyhacores.fft.util import toggle_bit_reverse
-
-    input_signal = toggle_bit_reverse(spectro_out.T).T
-    input_signal = np.fft.fftshift(input_signal)
-
-    dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, 1)
-    sims = simulate(dut, input_signal.T, simulations=['MODEL', 'PYHA', 'RTL'])
-    assert sims_close(sims, rtol=1e-2, atol=1e-5)
-
-
 @pytest.mark.parametrize("avg_freq_axis", [2, 4, 8, 16, 32])
 @pytest.mark.parametrize("avg_time_axis", [1, 2, 4, 8])
 @pytest.mark.parametrize("fft_size", [512, 256, 128])
 @pytest.mark.parametrize("input_power", [1.0, 0.001])
 def test_all(fft_size, avg_freq_axis, avg_time_axis, input_power):
-    packets = avg_time_axis * 4
+    packets = avg_time_axis * 2
     orig_inp = np.random.uniform(-1, 1, size=(packets, fft_size)) * input_power
     dut = BitreversalFFTshiftAVGPool(fft_size, avg_freq_axis, avg_time_axis)
-    sims = simulate(dut, orig_inp, simulations=['MODEL', 'PYHA'], output_callback=unpackage, input_callback=package)
+    sims = simulate(dut, orig_inp, simulations=['MODEL', 'PYHA'])
     assert sims_close(sims, rtol=1e-2, atol=1e-5)

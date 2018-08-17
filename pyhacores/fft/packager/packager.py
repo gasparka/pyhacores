@@ -28,7 +28,7 @@ class DataIndexValidPackager:
             for row in inputs:
                 ret += [DataIndexValid(self.dtype(elem), i) for i, elem in enumerate(row)]
         else:
-            ret += [DataIndexValid(elem, i) for i, elem in enumerate(inputs)]
+            ret += [DataIndexValid(self.dtype(elem), i) for i, elem in enumerate(inputs)]
 
         return ret
 
@@ -50,7 +50,8 @@ class DataIndexValidDePackager:
                 sublist.append(elem.data)
 
         ret.append(sublist)
-        return np.array(ret)
+        ret = np.array(ret).squeeze()
+        return ret
 
 
 class Packager(Hardware):
