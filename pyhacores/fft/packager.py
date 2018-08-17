@@ -1,33 +1,56 @@
 import numpy as np
 import pytest
-from pyha import Hardware, simulate, sims_close, Complex, Sfix, default_complex
+from pyha import Hardware, simulate, sims_close, Complex, Sfix
 
 
-class DataWithIndex(Hardware):
+class DataIndexValid(Hardware):
     def __init__(self, data, index=0, valid=True):
         self.data = data
         self.index = index
         self.valid = valid
 
 
-class Packager:
-    def __init__(self, dtype=default_complex, package_size=None):
+class DataIndexValidPackager:
+    def __init__(self, dtype=None, package_size=None):
         self.package_size = package_size
         self.dtype = dtype
 
-    def work_on_inputs(self, inputs):
+    def __call__(self, inputs):
+        if isinstance(inputs, tuple):
+            inputs = inputs[0]
         if self.package_size is None:
             self.package_size = inputs.shape[-1]
+
+        # TODO: throw away samples to fit package_size?
 
         ret = []
         if isinstance(inputs[0], (list, np.ndarray)):
             for row in inputs:
-                ret += [DataWithIndex(self.dtype(elem), i) for i, elem in enumerate(row)]
+                ret += [DataIndexValid(self.dtype(elem), i) for i, elem in enumerate(row)]
         else:
-            ret += [DataWithIndex(elem, i) for i, elem in enumerate(inputs)]
+            ret += [DataIndexValid(elem, i) for i, elem in enumerate(inputs)]
 
         return ret
 
+
+class DataIndexValidDePackager:
+    """ Discards invalid samples and turns the stream into 2D array, each row is one package """
+    def __call__(self, outputs):
+        ret = []
+        sublist = []
+        for elem in outputs:
+            if not elem.valid:  # discard all invalid samples
+                continue
+
+            if int(elem.index) == 0:
+                if len(sublist):
+                    ret.append(sublist)
+                sublist = [elem.data]
+            else:
+                sublist.append(elem.data)
+
+        ret.append(sublist)
+        return np.array(ret)
 
 
 def package(data):
@@ -41,9 +64,9 @@ def package(data):
     ret = []
     if isinstance(data[0], (list, np.ndarray)):
         for row in data:
-            ret += [DataWithIndex(elem, i) for i, elem in enumerate(row)]
+            ret += [DataIndexValid(elem, i) for i, elem in enumerate(row)]
     else:
-        ret += [DataWithIndex(elem, i) for i, elem in enumerate(data)]
+        ret += [DataIndexValid(elem, i) for i, elem in enumerate(data)]
 
     return ret
 
@@ -71,16 +94,16 @@ class Packager(Hardware):
         self.PACKET_SIZE = packet_size
         self.DELAY = 1
 
-        self.out = DataWithIndex(Complex(), index=self.PACKET_SIZE-1)
+        self.out = DataIndexValid(Complex(), index=self.PACKET_SIZE - 1)
 
     def main(self, data):
         """
         :type data: Complex
-        :rtype: DataWithIndex
+        :rtype: DataIndexValid
         """
 
         index = (self.out.index + 1) % self.PACKET_SIZE
-        self.out = DataWithIndex(data, index, valid=True)
+        self.out = DataIndexValid(data, index, valid=True)
 
         return self.out
 
@@ -100,8 +123,8 @@ def test_packager(M):
     sims = simulate(dut, inp,
                     output_callback=unpackage,
                     simulations=['MODEL', 'PYHA',
-                                                                                       'RTL',
-                                                                                       # 'GATE'
-                                                                                        ],
+                                 'RTL',
+                                 # 'GATE'
+                                 ],
                     conversion_path='/home/gaspar/git/pyha/playground')
     assert sims_close(sims, rtol=1e-2)

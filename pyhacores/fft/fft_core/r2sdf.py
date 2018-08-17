@@ -3,7 +3,7 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, resize, scalb, Sfix
 import numpy as np
 from pyha.common.shift_register import ShiftRegister
-from pyhacores.fft.packager import DataWithIndex, unpackage, package
+from pyhacores.fft.packager import DataIndexValid, unpackage, package
 from pyhacores.fft.util import toggle_bit_reverse
 
 logging.basicConfig(level=logging.INFO)
@@ -105,7 +105,7 @@ class R2SDF(Hardware):
 
         self.stages = [StageR2SDF(self.FFT_SIZE, i, twiddle_bits, inverse, input_ordering)
                        for i in range(self.N_STAGES)]
-        self.out = DataWithIndex(Complex(0.0, 0, -17, round_style='round'), 0)
+        self.out = DataIndexValid(Complex(0.0, 0, -17, round_style='round'), 0)
 
     def main(self, x):
         if self.INVERSE:

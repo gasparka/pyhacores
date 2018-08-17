@@ -3,7 +3,7 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, Sfix
 from scipy.signal import get_window
 
-from pyhacores.fft.packager import DataWithIndex, unpackage, package
+from pyhacores.fft.packager import DataIndexValid, unpackage, package
 
 
 # 8 bit 9 was about 1k LE
@@ -17,7 +17,7 @@ class Windower(Hardware):
         self.window_pure = get_window(window, M)
         self.WINDOW = [Sfix(x, 0, -(coefficient_bits-1), round_style='round', overflow_style='saturate')
                        for x in self.window_pure]
-        self.out = DataWithIndex(Complex())
+        self.out = DataIndexValid(Complex())
         self.DELAY = 1
 
     def main(self, inp):
@@ -32,7 +32,7 @@ class Windower(Hardware):
 
 def test_wtf():
     from pyhacores.fft import Windower
-    from pyhacores.fft.packager import DataWithIndex, Packager, unpackage, package
+    from pyhacores.fft.packager import DataIndexValid, Packager, unpackage, package
     # NBVAL_IGNORE_OUTPUT
     input_signal = [0.0 + 0.0j] * 512
     input_signal[0] = 1.0 + 1.0j
