@@ -3,7 +3,7 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, Sfix
 from scipy.signal import get_window
 
-from pyhacores.fft.packager import DataIndexValid, unpackage, package
+from pyhacores.fft.packager.packager import DataIndexValid
 
 
 # 8 bit 9 was about 1k LE
@@ -32,7 +32,7 @@ class Windower(Hardware):
 
 def test_wtf():
     from pyhacores.fft import Windower
-    from pyhacores.fft.packager import DataIndexValid, Packager, unpackage, package
+    from pyhacores.fft.packager.packager import unpackage, package
     # NBVAL_IGNORE_OUTPUT
     input_signal = [0.0 + 0.0j] * 512
     input_signal[0] = 1.0 + 1.0j

@@ -53,48 +53,16 @@ class DataIndexValidDePackager:
         return np.array(ret)
 
 
-def package(data):
-    # ret = []
-    # index_bits = np.log2(len(data[0]))
-    # for row in data:
-    #     ret += [DataWithIndex(elem, Sfix(float(i), index_bits, 0, signed=False)) for i, elem in enumerate(row)]
-    #
-    # return ret
-
-    ret = []
-    if isinstance(data[0], (list, np.ndarray)):
-        for row in data:
-            ret += [DataIndexValid(elem, i) for i, elem in enumerate(row)]
-    else:
-        ret += [DataIndexValid(elem, i) for i, elem in enumerate(data)]
-
-    return ret
-
-
-def unpackage(data):
-    ret = []
-    sublist = []
-    for elem in data:
-        if not elem.valid:
-            continue
-
-        if int(elem.index) == 0:
-            if len(sublist):
-                ret.append(sublist)
-            sublist = [elem.data]
-        else:
-            sublist.append(elem.data)
-
-    ret.append(sublist)
-    return ret
-
-
 class Packager(Hardware):
-    def __init__(self, packet_size):
+    """ Takes a stream of samples and packages them by adding index to each sample.
+    In simulation this looks like a
+    """
+    def __init__(self, packet_size, dtype=Complex()):
+        self._pyha_simulation_output_callback = DataIndexValidDePackager()
         self.PACKET_SIZE = packet_size
         self.DELAY = 1
 
-        self.out = DataIndexValid(Complex(), index=self.PACKET_SIZE - 1)
+        self.out = DataIndexValid(dtype, index=self.PACKET_SIZE - 1)
 
     def main(self, data):
         """
@@ -113,18 +81,9 @@ class Packager(Hardware):
 
 
 @pytest.mark.parametrize("M", [4, 8, 16, 32, 64, 128, 256])
-def test_packager(M):
-    # M = 1024 * 8
+@pytest.mark.parametrize("packets", [1, 2, 3, 4])
+def test_packager(M, packets):
     dut = Packager(M)
-
-    packets = np.random.randint(1, 4)
     inp = np.random.uniform(-1, 1, M * packets) + np.random.uniform(-1, 1, M * packets) * 1j
-
-    sims = simulate(dut, inp,
-                    output_callback=unpackage,
-                    simulations=['MODEL', 'PYHA',
-                                 'RTL',
-                                 # 'GATE'
-                                 ],
-                    conversion_path='/home/gaspar/git/pyha/playground')
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
     assert sims_close(sims, rtol=1e-2)
