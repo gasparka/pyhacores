@@ -3,41 +3,37 @@ import pickle
 import numpy as np
 from data import load_iq
 
-from pyha import Hardware, simulate, hardware_sims_equal, sims_close, Sfix
+from pyha import Hardware, simulate, hardware_sims_equal, sims_close, Sfix, Complex
+
+from pyhacores.fft import Packager, Windower, R2SDF, FFTPower, BitreversalFFTshiftAVGPool, DataIndexValidDePackager
 from pyhacores.filter import DCRemoval
-from under_construction.fft.bitreversal_fftshift_decimate import BitreversalFFTshiftDecimate
-from under_construction.fft.conjmult import ConjMult
-from under_construction.fft.fft_core import R2SDF
-from under_construction.fft.packager import Packager, unpackage, DataWithIndex
-from under_construction.fft.windower import Windower
 from scipy import signal
 
 
 class Spectrogram(Hardware):
-    """ The gain of main/model_main wont match"""
-
     def __init__(self, nfft, avg_freq_axis=2, avg_time_axis=1, window_type='hanning', fft_twiddle_bits=18, window_bits=18):
+        self._pyha_simulation_output_callback = DataIndexValidDePackager()
         self.DECIMATE_BY = avg_freq_axis
         self.NFFT = nfft
         self.WINDOW_TYPE = window_type
 
         # components
-        self.dc_removal = DCRemoval(256)
+        self.dc_removal = DCRemoval(256, dtype=Complex)
         self.pack = Packager(self.NFFT)
         self.windower = Windower(nfft, self.WINDOW_TYPE, coefficient_bits=window_bits)
         self.fft = R2SDF(nfft, twiddle_bits=fft_twiddle_bits)
-        self.abs = ConjMult()
-        self.dec = BitreversalFFTshiftDecimate(nfft, avg_freq_axis, avg_time_axis)
+        self.power = FFTPower()
+        self.dec = BitreversalFFTshiftAVGPool(nfft, avg_freq_axis, avg_time_axis)
 
-        self.DELAY = self.dc_removal.DELAY + self.pack.DELAY + self.windower.DELAY + self.fft.DELAY + self.abs.DELAY + self.dec.DELAY
+        self.DELAY = self.dc_removal.DELAY + self.pack.DELAY + self.windower.DELAY + self.fft.DELAY + self.power.DELAY + self.dec.DELAY
 
     def main(self, x):
         dc_out = self.dc_removal.main(x)
         pack_out = self.pack.main(dc_out)
         window_out = self.windower.main(pack_out)
         fft_out = self.fft.main(window_out)
-        mag_out = self.abs.main(fft_out)
-        dec_out = self.dec.main(mag_out)
+        power_out = self.power.main(fft_out)
+        dec_out = self.dec.main(power_out)
         return dec_out
 
     def model_main(self, x):
@@ -99,16 +95,15 @@ def test_simple():
 
     np.random.seed(0)
     fft_size = 1024 * 8
-    avg_time_axis = 4
+    avg_time_axis = 2
 
-    dut = Spectrogram(fft_size, avg_freq_axis=32, avg_time_axis=avg_time_axis, fft_twiddle_bits=9, window_bits=8)
+    dut = Spectrogram(fft_size, avg_freq_axis=16, avg_time_axis=avg_time_axis, fft_twiddle_bits=9, window_bits=8)
 
     packets = avg_time_axis
     inp = np.random.uniform(-1, 1, fft_size * packets) + np.random.uniform(-1, 1, fft_size * packets) * 1j
     inp *= 0.5 * 0.001
 
     sims = simulate(dut, inp,
-                    output_callback=unpackage,
                     simulations=['MODEL', 'PYHA',
                                  'GATE',
                                  # 'RTL'

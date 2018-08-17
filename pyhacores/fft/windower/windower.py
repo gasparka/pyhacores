@@ -3,7 +3,7 @@ import pytest
 from pyha import Hardware, simulate, sims_close, Complex, Sfix
 from scipy.signal import get_window
 
-from pyhacores.fft.packager.packager import DataIndexValid
+from pyhacores.fft.packager.packager import DataIndexValid, DataIndexValidPackager, DataIndexValidDePackager
 
 
 # 8 bit 9 was about 1k LE
@@ -13,6 +13,9 @@ from pyhacores.fft.packager.packager import DataIndexValid
 class Windower(Hardware):
     """ Windowing function determines the frequency response of FFT bins. """
     def __init__(self, M, window='hanning', coefficient_bits=8):
+        self._pyha_simulation_input_callback = DataIndexValidPackager(
+            dtype=Complex(0.0, 0, -17, overflow_style='saturate'))
+        self._pyha_simulation_output_callback = DataIndexValidDePackager()
         self.M = M
         self.window_pure = get_window(window, M)
         self.WINDOW = [Sfix(x, 0, -(coefficient_bits-1), round_style='round', overflow_style='saturate')
@@ -30,32 +33,9 @@ class Windower(Hardware):
         return complex_in_list * self.window_pure
 
 
-def test_wtf():
-    from pyhacores.fft import Windower
-    from pyhacores.fft.packager.packager import unpackage, package
-    # NBVAL_IGNORE_OUTPUT
-    input_signal = [0.0 + 0.0j] * 512
-    input_signal[0] = 1.0 + 1.0j
-
-    input_signal = np.reshape(input_signal, (-1, 128))
-    dut = Windower(128)
-    sims = simulate(dut, input_signal, output_callback=unpackage, input_callback=package, simulations=['MODEL', 'PYHA'])
-
-    pass
-
-
 @pytest.mark.parametrize("M", [4, 8, 16, 32, 64, 128, 256])
 def test_windower(M):
-    M = 1024 * 8
     dut = Windower(M)
     inp = np.random.uniform(-1, 1, size=(2, M)) + np.random.uniform(-1, 1, size=(2, M)) * 1j
-
-    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA',
-                                           # 'RTL',
-                                           # 'GATE'
-                                           ],
-                    conversion_path='/home/gaspar/git/pyhacores/playground',
-                    output_callback=unpackage,
-                    input_callback=package)
-
+    sims = simulate(dut, inp, simulations=['MODEL', 'PYHA'])
     assert sims_close(sims, rtol=1e-2, atol=1e-2)

@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-
 def load_iq(file):
     f = np.fromfile(open(str(file)), dtype=np.complex64)
     return f
+
 
 def snr(pure, noisy):
     sig_pow = np.mean(np.abs(pure))
@@ -14,6 +14,7 @@ def snr(pure, noisy):
 
     snr_db = 20 * np.log10(sig_pow / err_pow)
     return snr_db
+
 
 def show_freqz(taps):
     from scipy import signal
@@ -31,6 +32,7 @@ def show_freqz(taps):
     ax2.axis('tight')
     plt.tight_layout()
     plt.show()
+
 
 def show_plot():
     plt.tight_layout()
@@ -54,12 +56,13 @@ def imshow(im, rescale=True):
 def toggle_bit_reverse(ffts):
     def bit_reverse(x, n_bits):
         return int(np.binary_repr(x, n_bits)[::-1], 2)
+
     ffts = np.array(ffts)
 
     fft_size = ffts.shape[-1]
     bit_reversed_indexes = [bit_reverse(i, int(np.log2(fft_size))) for i in range(fft_size)]
     if len(ffts.shape) == 2:
-        reversed_ffts = ffts[:,bit_reversed_indexes]
+        reversed_ffts = ffts[:, bit_reversed_indexes]
     else:
         reversed_ffts = ffts[bit_reversed_indexes]
 
