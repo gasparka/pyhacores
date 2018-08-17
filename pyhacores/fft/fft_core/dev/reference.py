@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pyhacores.fft.util import toggle_bit_reverse
+from pyhacores.utils import toggle_bit_reverse
 
 
 def W(k, N, inverse=False):

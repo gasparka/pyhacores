@@ -4,7 +4,7 @@ import numpy as np
 from pyha.common.ram import RAM
 
 from pyhacores.fft.packager.packager import DataIndexValid, DataIndexValidPackager, DataIndexValidDePackager
-from pyhacores.fft.util import toggle_bit_reverse
+from pyhacores.utils import toggle_bit_reverse
 
 
 def build_lut(fft_size, freq_axis_decimation):

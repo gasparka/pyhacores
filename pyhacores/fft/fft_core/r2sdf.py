@@ -4,7 +4,7 @@ from pyha import Hardware, simulate, sims_close, Complex, resize, scalb, Sfix
 import numpy as np
 from pyha.common.shift_register import ShiftRegister
 from pyhacores.fft.packager.packager import DataIndexValid
-from pyhacores.fft.util import toggle_bit_reverse
+from pyhacores.utils import toggle_bit_reverse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('fft')
