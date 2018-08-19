@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -17,6 +16,7 @@ def snr(pure, noisy):
 
 
 def show_freqz(taps):
+    import matplotlib.pyplot as plt
     from scipy import signal
     w, h = signal.freqz(taps)
     fig, ax1 = plt.subplots(1, 1)
@@ -35,6 +35,7 @@ def show_freqz(taps):
 
 
 def show_plot():
+    import matplotlib.pyplot as plt
     plt.tight_layout()
     plt.grid()
     if plt.gca().get_legend_handles_labels() != ([], []):
@@ -43,6 +44,7 @@ def show_plot():
 
 
 def imshow(im, rescale=True):
+    import matplotlib.pyplot as plt
     im = np.array(im)
     if rescale:
         from skimage.exposure import exposure

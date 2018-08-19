@@ -1,18 +1,44 @@
+import logging
 import pickle
 
 import numpy as np
 from data import load_iq
 
-from pyha import Hardware, simulate, hardware_sims_equal, sims_close, Sfix, Complex
+from pyha import Hardware, simulate, hardware_sims_equal, sims_close, Complex
 
 from pyhacores.fft import Packager, Windower, R2SDF, FFTPower, BitreversalFFTshiftAVGPool, DataIndexValidDePackager
 from pyhacores.filter import DCRemoval
 from scipy import signal
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('spectrogram')
+
+
+class SpectrogramInputShaper:
+    """ Makes sure input is divisible to perform avg pooling! """
+
+    def __init__(self, nfft, avg_time_axis):
+        self.avg_time_axis = avg_time_axis
+        self.nfft = nfft
+
+    def __call__(self, input_signal):
+        input_signal = input_signal[0]
+        orig_len = len(input_signal)
+        new_end = np.floor(orig_len / self.nfft / self.avg_time_axis) * self.nfft * self.avg_time_axis
+        print(new_end, orig_len)
+        input_signal = input_signal[:new_end]
+
+        if orig_len != len(input_signal):
+            logger.warning(f'Throw away {orig_len - len(input_signal)} input samples to force divisability!')
+
+        return [Complex(x, 0, -17, overflow_style='saturate') for x in input_signal]
+
 
 class Spectrogram(Hardware):
-    def __init__(self, nfft, avg_freq_axis=2, avg_time_axis=1, window_type='hanning', fft_twiddle_bits=18, window_bits=18):
-        # self._pyha_simulation_output_callback = DataIndexValidDePackager()
+    def __init__(self, nfft, avg_freq_axis=2, avg_time_axis=1, window_type='hanning', fft_twiddle_bits=18,
+                 window_bits=18):
+        self._pyha_simulation_input_callback = SpectrogramInputShaper(nfft, avg_time_axis)
+        self._pyha_simulation_output_callback = DataIndexValidDePackager()
         self.DECIMATE_BY = avg_freq_axis
         self.NFFT = nfft
         self.WINDOW_TYPE = window_type
@@ -25,8 +51,8 @@ class Spectrogram(Hardware):
         self.power = FFTPower()
         self.dec = BitreversalFFTshiftAVGPool(nfft, avg_freq_axis, avg_time_axis)
 
-        self.DELAY = self.dc_removal.DELAY + self.pack.DELAY + self.windower.DELAY + self.fft.DELAY + \
-                     self.power.DELAY + self.dec.DELAY
+        # Note: Delay from DC-removal is not included, because it occurs before the 'packaging' making it irrelevant!
+        self.DELAY = self.pack.DELAY + self.fft.DELAY + self.windower.DELAY + self.power.DELAY + self.dec.DELAY
 
     def main(self, x):
         dc_out = self.dc_removal.main(x)
@@ -38,8 +64,18 @@ class Spectrogram(Hardware):
         return dec_out
 
     def model_main(self, x):
+        dc_out = self.dc_removal.model_main(x)
+        pack_out = self.pack.model_main(dc_out)
+        window_out = self.windower.model_main(pack_out)
+        fft_out = self.fft.model_main(window_out)
+        power_out = self.power.model_main(fft_out)
+        dec_out = self.dec.model_main(power_out)
+        return dec_out
         _, _, spectro_out = signal.spectrogram(x, 1, nperseg=self.NFFT, return_onesided=False, detrend=False,
                                                noverlap=0, window='hanning')
+
+        # apply hardware style gain
+        # spectro_out /= self.NFFT
 
         # fftshift
         shifted = np.roll(spectro_out, self.NFFT // 2, axis=0)
@@ -54,13 +90,15 @@ class Spectrogram(Hardware):
 def test_shit():
     fft_size = 1024
     file = '/home/gaspar/git/pyhacores/data/f2404_fs16.896_one_hop.iq'
-    orig_inp = load_iq(file)[10000:11024]
-
+    orig_inp = load_iq(file)[10000:10000 + fft_size * 2]
     orig_inp -= np.mean(orig_inp)
+    _, _, spectro_out = signal.spectrogram(orig_inp, 1, nperseg=fft_size, return_onesided=False, detrend=False,
+                                           noverlap=0, window='hann')
 
     dut = Spectrogram(fft_size, avg_freq_axis=2, avg_time_axis=1)
     sims = simulate(dut, orig_inp.T, simulations=['MODEL', 'PYHA'])
-    pass
+    assert sims_close(sims)
+
 
 def test_simple():
     # TWID: 10b, WINDOW: 8b
@@ -103,7 +141,6 @@ def test_simple():
     # Total memory bits	349,179 / 1,161,216 ( 30 % )
     # Embedded Multiplier 9-bit elements	104 / 232 ( 45 % )
     # Total PLLs	0 / 4 ( 0 % )
-
 
     np.random.seed(0)
     fft_size = 1024 * 8
@@ -153,6 +190,7 @@ def test_realsig():
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
 
+
 def test_realsig2():
     file = '/run/media/gaspar/maxtor/measurement 13.03.2018/mavic_tele/qdetector_20180313120601081997_noremote_medium_10m/1520935599.0396_fs=20000000.0_bw=20000000.0_fc=2410000000.0_d=3_g=063015.raw'
 
@@ -170,7 +208,6 @@ def test_realsig2():
     with open(f'{file}_spectro.pickle', 'wb') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(sims, f, pickle.HIGHEST_PROTOCOL)
-
 
 
 def test_real_life():
