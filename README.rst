@@ -1,6 +1,8 @@
 pyhacores
 =========
 
+THIS IS LEGACY REPO, SOON TO BE DELETED! ALL CORES ARE MERGED TO PYHA REPO.
+
 
 .. image:: https://img.shields.io/pypi/v/pyhacores.svg
         :target: https://pypi.python.org/pypi/pyhacores
